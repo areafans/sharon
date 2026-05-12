@@ -1,0 +1,159 @@
+/* ──────────────────────────────────────────────────────────────
+   SE Content Hub — Design tokens
+   Drop into your Vite app. Import in your root entry:
+     import './design-system/tokens.css';
+   Then use the CSS variables anywhere (className, inline styles,
+   Tailwind theme extension, styled-components, etc).
+   ────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Surfaces (warm paper) ───────────────────────── */
+  --color-bg:           #F7F5F0;
+  --color-bg-deep:      #EFEBE2;
+  --color-surface:      #FFFFFF;
+  --color-surface-2:    #FBF9F4;
+
+  /* ── Lines & text ────────────────────────────────── */
+  --color-line:         #E8E4DA;
+  --color-line-strong:  #D6D1C3;
+  --color-ink:          #1A1A18;
+  --color-ink-2:        #3D3B36;
+  --color-muted:        #6B6864;
+  --color-muted-2:      #94908A;
+
+  /* ── Accents ─────────────────────────────────────── */
+  --color-accent:       #C2410C;   /* rust — primary CTA, AI moments */
+  --color-accent-deep:  #9A330A;
+  --color-accent-soft:  #FBEFE6;
+  --color-forest:       #1F4E3D;   /* "published" / success */
+  --color-forest-soft:  #E6EEEA;
+  --color-gold:         #B8860B;   /* ratings */
+
+  /* ── Content-type accents ────────────────────────── */
+  --color-type-deck:   #6B4FBB;
+  --color-type-video:  #B83A52;
+  --color-type-demo:   #1F4E3D;
+  --color-type-doc:    #2F6CA8;
+  --color-type-code:   #5C4A1F;
+
+  /* ── Typography ──────────────────────────────────── */
+  --font-sans:    'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-display: 'Newsreader', Georgia, serif;
+
+  --font-size-xs:  10.5px;
+  --font-size-sm:  12px;
+  --font-size-md:  13.5px;
+  --font-size-lg:  15px;
+  --font-size-xl:  22px;
+  --font-size-2xl: 28px;
+  --font-size-3xl: 38px;
+  --font-size-4xl: 48px;
+
+  --line-tight:  1.1;
+  --line-normal: 1.5;
+  --line-relaxed: 1.6;
+
+  --tracking-display: -0.018em;  /* large serif headings */
+  --tracking-ui:      -0.005em;
+  --tracking-mono:    0.06em;    /* mono labels (uppercase) */
+
+  /* ── Radii ──────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* ── Spacing scale (4px base) ───────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Shadows ────────────────────────────────────── */
+  --shadow-card: 0 1px 0 rgba(26, 26, 24, 0.04), 0 1px 2px rgba(26, 26, 24, 0.04);
+  --shadow-pop:  0 12px 32px -8px rgba(26, 26, 24, 0.18), 0 4px 8px -2px rgba(26, 26, 24, 0.08);
+
+  /* ── Motion ─────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --duration-fast: 0.12s;
+  --duration-normal: 0.18s;
+
+  color-scheme: light;
+}
+
+/* ── Dark theme ────────────────────────────────────────
+   Apply via [data-theme="dark"] on <html>.
+   ────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-bg:           #14120D;
+  --color-bg-deep:      #1D1A14;
+  --color-surface:      #1B1813;
+  --color-surface-2:    #221E17;
+
+  --color-line:         #2C281F;
+  --color-line-strong:  #3A352A;
+  --color-ink:          #F0EBDF;
+  --color-ink-2:        #D4CEBE;
+  --color-muted:        #9A9382;
+  --color-muted-2:      #6E685B;
+
+  --color-accent:       #E8743B;
+  --color-accent-deep:  #C2410C;
+  --color-accent-soft:  #3A1F12;
+  --color-forest:       #5BAF85;
+  --color-forest-soft:  #1A2E25;
+  --color-gold:         #D4A02E;
+
+  --color-type-deck:   #A48EE3;
+  --color-type-video:  #E07A8E;
+  --color-type-demo:   #6CC196;
+  --color-type-doc:    #6BA5DE;
+  --color-type-code:   #C9B675;
+
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop:  0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 4px 8px -2px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+}
+
+/* ── Type recipes ───────────────────────────────────────
+   Convenience classes — use directly or copy into your
+   component styles.
+   ────────────────────────────────────────────────────── */
+
+.display-xl,
+.display-lg,
+.display-md {
+  font-family: var(--font-display);
+  font-weight: 500;
+  line-height: var(--line-tight);
+  letter-spacing: var(--tracking-display);
+}
+.display-xl { font-size: var(--font-size-4xl); font-variation-settings: "opsz" 72; }
+.display-lg { font-size: var(--font-size-3xl); font-variation-settings: "opsz" 60; }
+.display-md { font-size: var(--font-size-2xl); font-variation-settings: "opsz" 36; }
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.text-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}

@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8"/>
+  <title>SE Content Hub — Design System</title>
+  <link rel="stylesheet" href="tokens.css"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-ink);
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.18s, color 0.18s;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 40px 80px; }
+    .head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 48px; padding-bottom: 24px; border-bottom: 1px solid var(--color-line); }
+    h1 { font-family: var(--font-display); font-weight: 500; font-size: 56px; letter-spacing: -0.02em; line-height: 0.95; margin: 0 0 6px; font-variation-settings: "opsz" 72; }
+    h1 em { font-style: italic; font-weight: 400; }
+    .head-sub { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .theme-toggle {
+      display: inline-flex; background: var(--color-bg-deep); border: 1px solid var(--color-line); border-radius: 999px; padding: 2px;
+    }
+    .theme-toggle button {
+      font: inherit; cursor: pointer; background: none; border: none; padding: 6px 14px;
+      border-radius: 999px; font-size: 12px; color: var(--color-muted); font-weight: 500;
+    }
+    .theme-toggle button.active { background: var(--color-surface); color: var(--color-ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px var(--color-line); }
+    [data-theme="dark"] .theme-toggle button.active { box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px var(--color-line-strong); }
+
+    section { margin-bottom: 64px; }
+    .section-head {
+      display: flex; align-items: baseline; gap: 12px;
+      margin-bottom: 24px;
+      border-top: 1px solid var(--color-line);
+      padding-top: 24px;
+    }
+    .section-head h2 { font-family: var(--font-display); font-weight: 500; font-size: 32px; margin: 0; letter-spacing: -0.015em; font-variation-settings: "opsz" 48; }
+    .section-head .num { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* Color swatches */
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+    .swatch {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .swatch .chip { height: 88px; }
+    .swatch .meta { padding: 10px 12px; }
+    .swatch .name { font-weight: 600; font-size: 13px; }
+    .swatch .hex { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); letter-spacing: 0.02em; margin-top: 2px; }
+    .swatch .var { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted-2); margin-top: 6px; }
+
+    /* Type specimens */
+    .type-row {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 28px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--color-line);
+      align-items: baseline;
+    }
+    .type-row:last-child { border-bottom: none; }
+    .type-row .meta {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--color-muted); letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .type-row .meta b { display: block; color: var(--color-ink); font-family: var(--font-mono); font-weight: 500; margin-bottom: 4px; font-size: 11px; }
+
+    .specimen-display-xl { font-family: var(--font-display); font-weight: 500; font-size: 56px; letter-spacing: -0.02em; line-height: 0.95; font-variation-settings: "opsz" 72; }
+    .specimen-display-xl em { font-style: italic; font-weight: 400; }
+    .specimen-display-lg { font-family: var(--font-display); font-weight: 500; font-size: 38px; letter-spacing: -0.018em; line-height: 1.05; font-variation-settings: "opsz" 60; }
+    .specimen-display-md { font-family: var(--font-display); font-weight: 500; font-size: 28px; letter-spacing: -0.015em; line-height: 1.1; font-variation-settings: "opsz" 36; }
+    .specimen-ui-lg { font-size: 15px; font-weight: 500; }
+    .specimen-ui-md { font-size: 13.5px; }
+    .specimen-ui-sm { font-size: 12px; color: var(--color-ink-2); }
+    .specimen-mono { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+    /* Radii */
+    .radii { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+    .radius-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      padding: 18px 12px;
+      text-align: center;
+    }
+    .radius-card .demo {
+      height: 60px; background: var(--color-bg-deep); margin-bottom: 12px;
+    }
+    .radius-card .label { font-family: var(--font-mono); font-size: 10px; color: var(--color-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .radius-card .value { font-family: var(--font-mono); font-size: 11px; margin-top: 2px; }
+    .r-xs .demo { border-radius: 4px; }
+    .r-sm .demo { border-radius: 6px; }
+    .r-md .demo { border-radius: 10px; }
+    .r-lg .demo { border-radius: 14px; }
+    .r-xl .demo { border-radius: 20px; }
+    .r-pill .demo { border-radius: 999px; }
+
+    /* Spacing */
+    .spacing-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--color-line);
+    }
+    .spacing-row:last-child { border-bottom: none; }
+    .spacing-row .label { font-family: var(--font-mono); font-size: 11px; width: 60px; color: var(--color-ink); }
+    .spacing-row .px { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); width: 50px; }
+    .spacing-row .bar { height: 14px; background: var(--color-accent); border-radius: 2px; }
+
+    /* Shadow */
+    .shadows { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .shadow-card-demo {
+      background: var(--color-surface);
+      border-radius: 10px;
+      padding: 32px 24px;
+      box-shadow: var(--shadow-card);
+    }
+    .shadow-pop-demo {
+      background: var(--color-surface);
+      border-radius: 14px;
+      padding: 32px 24px;
+      box-shadow: var(--shadow-pop);
+    }
+
+    /* Sample components */
+    .demo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .demo-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-line);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .demo-card .label-mono {
+      font-family: var(--font-mono); font-size: 10px; color: var(--color-muted);
+      letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; display: block;
+    }
+    .demo-card h3 { font-family: var(--font-display); font-weight: 500; font-size: 22px; margin: 0 0 6px; letter-spacing: -0.012em; font-variation-settings: "opsz" 32; }
+    .demo-card p { margin: 0 0 14px; font-size: 13px; color: var(--color-ink-2); line-height: 1.55; }
+    .btn-row { display: flex; gap: 8px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 500;
+      border: 1px solid transparent; cursor: pointer;
+    }
+    .btn-primary { background: var(--color-accent); color: white; }
+    .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-line); }
+
+    .chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      font-family: var(--font-mono); font-size: 10.5px;
+      padding: 2px 7px; border-radius: 4px; background: var(--color-bg-deep); color: var(--color-ink-2);
+    }
+    .chip.accent { background: var(--color-accent-soft); color: var(--color-accent-deep); }
+    .chip.forest { background: var(--color-forest-soft); color: var(--color-forest); }
+
+    /* Content type swatches */
+    .types { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .type-card-d {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--color-line);
+    }
+    .type-card-d .poster {
+      height: 80px; display: grid; place-items: center;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+    }
+    .type-card-d .name { padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; }
+    .pd-deck  { background: linear-gradient(135deg, #EFE6FF 0%, #D8C8FF 100%); color: var(--color-type-deck); }
+    .pd-video { background: linear-gradient(135deg, #FFE6EB 0%, #FFC8D2 100%); color: var(--color-type-video); }
+    .pd-demo  { background: linear-gradient(135deg, #E0F2E9 0%, #BFE0CF 100%); color: var(--color-type-demo); }
+    .pd-doc   { background: linear-gradient(135deg, #E2EEFB 0%, #C2D9F2 100%); color: var(--color-type-doc); }
+    .pd-code  { background: linear-gradient(135deg, #F2EBD5 0%, #E4D5A8 100%); color: var(--color-type-code); }
+    [data-theme="dark"] .pd-deck  { background: linear-gradient(135deg, #2B2240 0%, #3B2E5C 100%); }
+    [data-theme="dark"] .pd-video { background: linear-gradient(135deg, #3A1E26 0%, #58293A 100%); }
+    [data-theme="dark"] .pd-demo  { background: linear-gradient(135deg, #15281F 0%, #1F3A2D 100%); }
+    [data-theme="dark"] .pd-doc   { background: linear-gradient(135deg, #182634 0%, #25394E 100%); }
+    [data-theme="dark"] .pd-code  { background: linear-gradient(135deg, #2C2412 0%, #3D321D 100%); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="head">
+      <div>
+        <div class="head-sub">Design system · v1.0</div>
+        <h1>The <em>SE Content Hub</em><br/>visual language</h1>
+      </div>
+      <div class="theme-toggle">
+        <button data-th="light" class="active">Light</button>
+        <button data-th="dark">Dark</button>
+      </div>
+    </header>
+
+    <!-- COLORS -->
+    <section>
+      <div class="section-head">
+        <span class="num">01</span>
+        <h2>Color</h2>
+      </div>
+
+      <div class="head-sub" style="margin-bottom:14px">Surfaces</div>
+      <div class="swatches" style="margin-bottom:32px">
+        <div class="swatch"><div class="chip" style="background:var(--color-bg)"></div><div class="meta"><div class="name">bg</div><div class="hex" id="hex-bg">#F7F5F0</div><div class="var">--color-bg</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-bg-deep)"></div><div class="meta"><div class="name">bg-deep</div><div class="hex" id="hex-bgdeep">#EFEBE2</div><div class="var">--color-bg-deep</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-surface)"></div><div class="meta"><div class="name">surface</div><div class="hex" id="hex-surf">#FFFFFF</div><div class="var">--color-surface</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-surface-2)"></div><div class="meta"><div class="name">surface-2</div><div class="hex" id="hex-surf2">#FBF9F4</div><div class="var">--color-surface-2</div></div></div>
+      </div>
+
+      <div class="head-sub" style="margin-bottom:14px">Lines &amp; text</div>
+      <div class="swatches" style="margin-bottom:32px">
+        <div class="swatch"><div class="chip" style="background:var(--color-line)"></div><div class="meta"><div class="name">line</div><div class="hex" id="hex-line">#E8E4DA</div><div class="var">--color-line</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-line-strong)"></div><div class="meta"><div class="name">line-strong</div><div class="hex" id="hex-lineS">#D6D1C3</div><div class="var">--color-line-strong</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-ink)"></div><div class="meta"><div class="name">ink</div><div class="hex" id="hex-ink">#1A1A18</div><div class="var">--color-ink</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-ink-2)"></div><div class="meta"><div class="name">ink-2</div><div class="hex" id="hex-ink2">#3D3B36</div><div class="var">--color-ink-2</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-muted)"></div><div class="meta"><div class="name">muted</div><div class="hex" id="hex-muted">#6B6864</div><div class="var">--color-muted</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-muted-2)"></div><div class="meta"><div class="name">muted-2</div><div class="hex" id="hex-muted2">#94908A</div><div class="var">--color-muted-2</div></div></div>
+      </div>
+
+      <div class="head-sub" style="margin-bottom:14px">Accent</div>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:var(--color-accent)"></div><div class="meta"><div class="name">accent</div><div class="hex" id="hex-acc">#C2410C</div><div class="var">--color-accent</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-accent-deep)"></div><div class="meta"><div class="name">accent-deep</div><div class="hex" id="hex-accd">#9A330A</div><div class="var">--color-accent-deep</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-accent-soft)"></div><div class="meta"><div class="name">accent-soft</div><div class="hex" id="hex-accs">#FBEFE6</div><div class="var">--color-accent-soft</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-forest)"></div><div class="meta"><div class="name">forest</div><div class="hex" id="hex-for">#1F4E3D</div><div class="var">--color-forest</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-forest-soft)"></div><div class="meta"><div class="name">forest-soft</div><div class="hex" id="hex-fors">#E6EEEA</div><div class="var">--color-forest-soft</div></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--color-gold)"></div><div class="meta"><div class="name">gold</div><div class="hex" id="hex-gold">#B8860B</div><div class="var">--color-gold</div></div></div>
+      </div>
+    </section>
+
+    <!-- CONTENT TYPES -->
+    <section>
+      <div class="section-head">
+        <span class="num">02</span>
+        <h2>Content type accents</h2>
+      </div>
+      <div class="types">
+        <div class="type-card-d"><div class="poster pd-deck">Deck</div><div class="name">--color-type-deck</div></div>
+        <div class="type-card-d"><div class="poster pd-video">Video</div><div class="name">--color-type-video</div></div>
+        <div class="type-card-d"><div class="poster pd-demo">Demo</div><div class="name">--color-type-demo</div></div>
+        <div class="type-card-d"><div class="poster pd-doc">Doc</div><div class="name">--color-type-doc</div></div>
+        <div class="type-card-d"><div class="poster pd-code">Code</div><div class="name">--color-type-code</div></div>
+      </div>
+    </section>
+
+    <!-- TYPE -->
+    <section>
+      <div class="section-head">
+        <span class="num">03</span>
+        <h2>Typography</h2>
+      </div>
+
+      <div class="type-row">
+        <div class="meta"><b>Display XL</b>Newsreader · 500 · opsz 72 · 56px</div>
+        <div class="specimen-display-xl">What are you <em>working on?</em></div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>Display LG</b>Newsreader · 500 · opsz 60 · 38px</div>
+        <div class="specimen-display-lg">Everything the team has made</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>Display MD</b>Newsreader · 500 · opsz 36 · 28px</div>
+        <div class="specimen-display-md">Drafts the team is kicking around</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>UI LG</b>Manrope · 500 · 15px</div>
+        <div class="specimen-ui-lg">Enterprise Security Pitch — Q3</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>UI MD</b>Manrope · 400 · 13.5px</div>
+        <div class="specimen-ui-md">Polished pitch deck for the enterprise security segment. Covers threat model, compliance posture, and our differentiation.</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>UI SM</b>Manrope · 400 · 12px</div>
+        <div class="specimen-ui-sm">Final pitch deck — used by 4 SEs in active deals</div>
+      </div>
+      <div class="type-row">
+        <div class="meta"><b>Mono label</b>Geist Mono · 400 · 11px · uppercase</div>
+        <div class="specimen-mono">Library · 12 of 12 items</div>
+      </div>
+    </section>
+
+    <!-- RADII -->
+    <section>
+      <div class="section-head">
+        <span class="num">04</span>
+        <h2>Radii</h2>
+      </div>
+      <div class="radii">
+        <div class="radius-card r-xs"><div class="demo"></div><div class="label">xs</div><div class="value">4px</div></div>
+        <div class="radius-card r-sm"><div class="demo"></div><div class="label">sm</div><div class="value">6px</div></div>
+        <div class="radius-card r-md"><div class="demo"></div><div class="label">md</div><div class="value">10px</div></div>
+        <div class="radius-card r-lg"><div class="demo"></div><div class="label">lg</div><div class="value">14px</div></div>
+        <div class="radius-card r-xl"><div class="demo"></div><div class="label">xl</div><div class="value">20px</div></div>
+        <div class="radius-card r-pill"><div class="demo"></div><div class="label">pill</div><div class="value">999px</div></div>
+      </div>
+    </section>
+
+    <!-- SPACING -->
+    <section>
+      <div class="section-head">
+        <span class="num">05</span>
+        <h2>Spacing</h2>
+      </div>
+      <div>
+        <div class="spacing-row"><div class="label">space-1</div><div class="px">4px</div><div class="bar" style="width:4px"></div></div>
+        <div class="spacing-row"><div class="label">space-2</div><div class="px">8px</div><div class="bar" style="width:8px"></div></div>
+        <div class="spacing-row"><div class="label">space-3</div><div class="px">12px</div><div class="bar" style="width:12px"></div></div>
+        <div class="spacing-row"><div class="label">space-4</div><div class="px">16px</div><div class="bar" style="width:16px"></div></div>
+        <div class="spacing-row"><div class="label">space-5</div><div class="px">20px</div><div class="bar" style="width:20px"></div></div>
+        <div class="spacing-row"><div class="label">space-6</div><div class="px">24px</div><div class="bar" style="width:24px"></div></div>
+        <div class="spacing-row"><div class="label">space-8</div><div class="px">32px</div><div class="bar" style="width:32px"></div></div>
+        <div class="spacing-row"><div class="label">space-10</div><div class="px">40px</div><div class="bar" style="width:40px"></div></div>
+        <div class="spacing-row"><div class="label">space-12</div><div class="px">48px</div><div class="bar" style="width:48px"></div></div>
+      </div>
+    </section>
+
+    <!-- SHADOWS -->
+    <section>
+      <div class="section-head">
+        <span class="num">06</span>
+        <h2>Shadows</h2>
+      </div>
+      <div class="shadows">
+        <div class="shadow-card-demo">
+          <div class="specimen-mono" style="margin-bottom:8px">--shadow-card</div>
+          <div style="font-weight:500">Subtle elevation — for cards in a grid.</div>
+        </div>
+        <div class="shadow-pop-demo">
+          <div class="specimen-mono" style="margin-bottom:8px">--shadow-pop</div>
+          <div style="font-weight:500">Big lift — modals, popovers, toasts.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPONENTS -->
+    <section>
+      <div class="section-head">
+        <span class="num">07</span>
+        <h2>Sample compositions</h2>
+      </div>
+      <div class="demo-grid">
+        <div class="demo-card">
+          <span class="label-mono">Deck · 38 slides</span>
+          <h3>Enterprise Security Pitch — Q3</h3>
+          <p>Polished pitch deck for the enterprise security segment. Covers threat model and compliance posture.</p>
+          <div class="chip-row" style="margin-bottom:14px">
+            <span class="chip">enterprise</span>
+            <span class="chip">security</span>
+            <span class="chip accent">pitch</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary">Open</button>
+            <button class="btn btn-secondary">Share</button>
+          </div>
+        </div>
+
+        <div class="demo-card" style="border-color: var(--color-forest)">
+          <span class="label-mono" style="color: var(--color-forest)">Published · in library</span>
+          <h3>CTO 30-min Briefing</h3>
+          <p>A trim, 6-slide briefing for CTOs reassessing their data platform in 2026.</p>
+          <div class="chip-row" style="margin-bottom:14px">
+            <span class="chip forest">published</span>
+            <span class="chip">briefing</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary">View idea</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Theme toggle
+    document.querySelectorAll('.theme-toggle button').forEach(b => {
+      b.addEventListener('click', () => {
+        const th = b.dataset.th;
+        document.documentElement.setAttribute('data-theme', th);
+        document.querySelectorAll('.theme-toggle button').forEach(x => x.classList.toggle('active', x === b));
+        // refresh hex displays
+        setTimeout(updateHex, 50);
+      });
+    });
+
+    // Show actual resolved hex for each swatch in current theme
+    function updateHex() {
+      const cs = getComputedStyle(document.documentElement);
+      const map = [
+        ['hex-bg', '--color-bg'], ['hex-bgdeep', '--color-bg-deep'],
+        ['hex-surf', '--color-surface'], ['hex-surf2', '--color-surface-2'],
+        ['hex-line', '--color-line'], ['hex-lineS', '--color-line-strong'],
+        ['hex-ink', '--color-ink'], ['hex-ink2', '--color-ink-2'],
+        ['hex-muted', '--color-muted'], ['hex-muted2', '--color-muted-2'],
+        ['hex-acc', '--color-accent'], ['hex-accd', '--color-accent-deep'], ['hex-accs', '--color-accent-soft'],
+        ['hex-for', '--color-forest'], ['hex-fors', '--color-forest-soft'],
+        ['hex-gold', '--color-gold'],
+      ];
+      map.forEach(([id, v]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = cs.getPropertyValue(v).trim().toUpperCase();
+      });
+    }
+    updateHex();
+  </script>
+</body>
+</html>
