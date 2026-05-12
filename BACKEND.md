@@ -88,32 +88,37 @@ AI-generated content drafts. Stored as `jsonb` in the `artifact` column. Can be 
 
 ```mermaid
 flowchart TD
-    A([User selects file\nor pastes URL]) --> B[Upload.jsx]
+    A([User uploads file or URL]) --> B[Upload.jsx]
+    B --> C{Detect file type}
 
-    B --> C{File type?}
+    C -->|PDF| D1[pdfjs-dist]
+    C -->|PPTX / DOCX| D2[JSZip XML parser]
+    C -->|Image| D3[GPT-4o Vision]
+    C -->|Video / Audio| D4[OpenAI Whisper]
+    C -->|Text / Code| D5[file.text]
+    C -->|Unknown| D6[Metadata fallback]
 
-    C -->|PDF| D1[pdfjs-dist\npage-by-page text extraction]
-    C -->|PPTX / DOCX| D2[JSZip\nXML text node parsing]
-    C -->|Image PNG/JPG| D3[GPT-4o Vision\nrichly describes visual content]
-    C -->|Video / Audio| D4[OpenAI Whisper\ntranscription]
-    C -->|Plain text / code| D5[file.text\ndirect read]
-    C -->|Unknown binary| D6[Fallback to\ntitle + description + tags]
+    D1 --> E[Extracted text]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    D5 --> E
+    D6 --> E
 
-    D1 & D2 & D3 & D4 & D5 & D6 --> E[Prepend metadata header\ntitle · description · tags]
+    E --> META[Prepend title + description + tags]
 
-    E --> F[GPT-4o\nAI metadata generation\nautofill title, description, tags]
-    F --> G[(Supabase\ncontent_items row\nai_metadata_generated = true)]
+    META --> AI["GPT-4o — autofill title, description, tags"]
+    AI --> DB1[("content_items")]
 
-    E --> H[chunkText\n2 000-char chunks\n200-char overlap]
-    H --> I[embedAllChunks\nbatches of 100]
-    I --> J[OpenAI\ntext-embedding-3-small\n1 536-dim vectors]
-    J --> K[Delete old embeddings\nfor this content_id]
-    K --> L[(Supabase\ncontent_embeddings\none row per chunk\nchunk_text · embedding · chunk_index)]
+    META --> CHUNK["chunkText — 2,000 chars / 200 overlap"]
+    CHUNK --> EMBED["text-embedding-3-small — batches of 100"]
+    EMBED --> STORE[("content_embeddings — 1 row per chunk")]
 
-    B --> M[Supabase Storage\ncontent-files bucket\npublic file URL]
-    M --> G
-    L --> N([embedding_status = complete\nchunk_count updated])
-    G --> N
+    B --> STORAGE["Supabase Storage — content-files bucket"]
+    STORAGE --> DB1
+
+    STORE --> DONE([embedding_status = complete])
+    DB1 --> DONE
 ```
 
 ---
@@ -122,33 +127,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([User types question\nin Chat.jsx]) --> B[generateEmbedding\nOpenAI text-embedding-3-small\n1 536-dim query vector]
+    A([User sends question]) --> EMB["text-embedding-3-small — 1,536-dim query vector"]
 
-    B --> C[searchSimilarContent\nfetch sourceCount × 4 chunks]
-    C --> D[(Supabase RPC\nmatch_content\npgvector cosine similarity\nLIMIT N chunks)]
+    EMB --> FETCH["Fetch sourceCount x4 chunks from Postgres"]
+    FETCH --> RPC[("match_content RPC — pgvector cosine similarity")]
 
-    D --> E[JS deduplication\nbest chunk per content_id\nsorted by similarity score]
-    E --> F[Slice to sourceCount\ndistinct sources]
+    RPC --> DEDUP["Deduplicate by content_id — keep best chunk per source"]
+    DEDUP --> SLICE["Slice to sourceCount distinct sources"]
 
-    F --> G{Any results?}
+    SLICE --> CHECK{Any results?}
 
-    G -->|Yes| H[Build CONTEXT block\nSource 1: title · chunk_text\nSource 2: title · chunk_text\n...]
-    G -->|No| I[Answer from\ngeneral knowledge only]
+    CHECK -->|Yes| CTX["Build CONTEXT block — Source 1, Source 2 ..."]
+    CHECK -->|No| NOCTX[Answer from general knowledge]
 
-    H --> J[Construct OpenAI messages\nsystem: grounding prompt + CONTEXT\nhistory: prior turns\nuser: current question]
-    I --> J
+    CTX --> PROMPT["Construct prompt — system + CONTEXT + history + question"]
+    NOCTX --> PROMPT
 
-    J --> K[OpenAI\ngpt-4o\ntemperature 0.7\nmax_tokens 1 500]
-    K --> L[Assistant reply]
+    PROMPT --> GPT["gpt-4o — temp 0.7, max 1,500 tokens"]
+    GPT --> REPLY[Assistant reply]
 
-    L --> M[Attach deduplicated\nsource cards to message]
-    M --> N([Render ChatMessage\nwith Sources chips\nlinked to file_url])
+    REPLY --> CARDS["Attach source cards linked to file_url"]
+    CARDS --> RENDER([Render in Chat UI])
 
-    subgraph Scope control
-        SC1[searchScope = all → filter_user_id = null]
-        SC2[searchScope = mine → filter_user_id = user.id]
-    end
-    C -.->|scope param| Scope control
+    SCOPE1["All content — filter_user_id = null"] -.->|scope| FETCH
+    SCOPE2["My content — filter_user_id = user.id"] -.->|scope| FETCH
 ```
 
 ---
