@@ -144,48 +144,42 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
 
   async function loadHistory() {
     try {
-      let { data: sess } = await supabase
+      const { data: sessions } = await supabase
         .from('chat_sessions')
         .select('id')
         .eq('user_id', session.user.id)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (!sess) {
-        const { data: newSess } = await supabase
-          .from('chat_sessions')
-          .insert({ user_id: session.user.id })
-          .select('id')
-          .single();
-        sess = newSess;
-      }
+      const sess = sessions?.[0] ?? null;
+      if (!sess) return; // no sessions yet — one will be created lazily on first send
 
-      setChatSessionId(sess?.id);
+      setChatSessionId(sess.id);
 
-      if (sess?.id) {
-        const { data: history } = await supabase
-          .from('chat_messages')
-          .select('role, content, created_at')
-          .eq('session_id', sess.id)
-          .order('created_at', { ascending: true })
-          .limit(50);
+      const { data: history } = await supabase
+        .from('chat_messages')
+        .select('role, content, created_at')
+        .eq('session_id', sess.id)
+        .order('created_at', { ascending: true })
+        .limit(50);
 
-        if (history?.length > 0) {
-          setMessages(history.map(m => ({
-            role: m.role === 'user' ? 'user' : 'ai',
-            body: m.content,
-            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          })));
-        }
+      if (history?.length > 0) {
+        setMessages(history.map(m => ({
+          role: m.role === 'user' ? 'user' : 'ai',
+          body: m.content,
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        })));
       }
     } catch (err) {
       console.warn('Chat history load failed:', err.message);
     }
   }
 
-  async function saveMessage(role, content) {
-    if (!chatSessionId) return;
+  async function saveMessage(role, content, sessionId) {
+    const sid = sessionId ?? chatSessionId;
+    if (!sid) return;
     await supabase.from('chat_messages').insert({
-      session_id: chatSessionId,
+      session_id: sid,
       role: role === 'user' ? 'user' : 'assistant',
       content,
     });
@@ -195,12 +189,30 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
     const text = (textOverride ?? input).trim();
     if (!text || thinking) return;
 
+    /* Lazily create a session on the first message */
+    let sessionId = chatSessionId;
+    if (!sessionId) {
+      try {
+        const { data: newSess, error } = await supabase
+          .from('chat_sessions')
+          .insert({ user_id: session.user.id, title: text.slice(0, 52) })
+          .select('id')
+          .single();
+        if (error) throw error;
+        sessionId = newSess.id;
+        setChatSessionId(newSess.id);
+      } catch (e) {
+        console.error('Failed to create chat session:', e.message);
+        return;
+      }
+    }
+
     const userMsg = { role: 'user', body: text, time: 'Just now' };
     setMessages(m => [...m, userMsg]);
     setInput('');
     setThinking(true);
 
-    await saveMessage('user', text);
+    await saveMessage('user', text, sessionId);
 
     try {
       // 1. Embed query + vector search
@@ -259,12 +271,12 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
 
       const reply = { role: 'ai', body, time: 'Just now', cards: cards.length > 0 ? cards : undefined, draft };
       setMessages(m => [...m, reply]);
-      await saveMessage('assistant', replyText);
+      await saveMessage('assistant', replyText, sessionId);
     } catch (err) {
       console.error('Chat error:', err);
       const errMsg = { role: 'ai', body: 'Sorry, I hit an error. Please try again.', time: 'Just now' };
       setMessages(m => [...m, errMsg]);
-      await saveMessage('assistant', errMsg.body);
+      await saveMessage('assistant', errMsg.body, sessionId);
     } finally {
       setThinking(false);
     }

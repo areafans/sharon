@@ -54,9 +54,12 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
           <span className="nav-icon"><Icons.Sparkle size={16} /></span>
           Chat
         </button>
-        <button className="nav-item" onClick={() => onNav('library')}>
-          <span className="nav-icon"><Icons.Activity size={16} /></span>
-          Activity
+        <button
+          className={`nav-item ${view === 'analytics' ? 'active' : ''}`}
+          onClick={() => onNav('analytics')}
+        >
+          <span className="nav-icon"><Icons.BarChart size={16} /></span>
+          Analytics
         </button>
       </div>
 

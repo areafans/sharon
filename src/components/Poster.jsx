@@ -84,7 +84,7 @@ function PdfCardThumbnail({ url }) {
   );
 }
 
-export default function Poster({ item, showText = false }) {
+export default function Poster({ item, showText = false, compact = false }) {
   const type = item?.content_type || item?.type || 'doc';
   const meta = TYPE_META[type] || TYPE_META.doc;
   const IconComp = Icons[meta.icon];
@@ -93,7 +93,7 @@ export default function Poster({ item, showText = false }) {
   const cardType = fileUrl && !item?.is_external_url ? getCardFileType(item) : null;
 
   return (
-    <div className={`card-poster ${meta.poster}`}>
+    <div className={`card-poster ${meta.poster}${compact ? ' card-poster--compact' : ''}`}>
       <div className="poster-meta" style={{ color: meta.color }}>
         {meta.label.toUpperCase()}
       </div>

@@ -65,11 +65,10 @@ async function embedText(text) {
   return data.data[0].embedding;
 }
 
-async function runVectorSearch(embedding, matchCount = 8) {
-  const { data, error } = await supabase.rpc('match_content', {
-    query_embedding: embedding,
-    match_count: matchCount,
-  });
+async function runVectorSearch(embedding, matchCount = 8, filterUserId = null) {
+  const params = { query_embedding: embedding, match_count: matchCount };
+  if (filterUserId) params.filter_user_id = filterUserId;
+  const { data, error } = await supabase.rpc('match_content', params);
   if (error) {
     console.error('[match_content] RPC error:', error);
     throw new Error(error.message);
@@ -117,6 +116,8 @@ export default function ChatView({ session, items, onOpenContent }) {
   const [activeSteps, setActiveSteps] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [useDocuments, setUseDocuments] = useState(true);   // toggle document sourcing
+  const [docScope, setDocScope] = useState('all');           // 'all' | 'mine'
   const bodyRef = useRef(null);
   const taRef = useRef(null);
   // Ref to always hold the latest steps state — avoids stale closure when
@@ -203,6 +204,25 @@ export default function ChatView({ session, items, onOpenContent }) {
     finally { setLoadingHistory(false); }
   }
 
+  async function deleteSession(sessId) {
+    try {
+      await supabase.from('chat_sessions').delete().eq('id', sessId);
+      setSessions(prev => {
+        const next = prev.filter(s => s.id !== sessId);
+        if (activeSessionId === sessId) {
+          if (next.length > 0) {
+            loadSession(next[0]);
+          } else {
+            setActiveSessionId(null);
+            setMessages([]);
+            setSources([]);
+          }
+        }
+        return next;
+      });
+    } catch (e) { console.error('deleteSession:', e.message); }
+  }
+
   async function touchSession(sessionId) {
     const now = new Date().toISOString();
     await supabase.from('chat_sessions').update({ updated_at: now }).eq('id', sessionId);
@@ -268,47 +288,63 @@ export default function ChatView({ session, items, onOpenContent }) {
     let usedFallback = false;
 
     try {
-      /* Step 1 – embed */
-      patchStep('embed', { status: 'active' });
-      const embedding = await embedText(text);
-      patchStep('embed', { status: 'done', detail: `${embedding.length}-dim vector` });
+      let deduped = [];
 
-      /* Step 2 – vector search */
-      patchStep('search', { status: 'active', detail: `scanning ${items.length} item${items.length !== 1 ? 's' : ''}…` });
-      let rpcError = null;
-      try {
-        searchResults = await runVectorSearch(embedding, 8);
-      } catch (e) {
-        rpcError = e.message;
-      }
+      if (useDocuments) {
+        /* Step 1 – embed */
+        patchStep('embed', { status: 'active' });
+        const embedding = await embedText(text);
+        patchStep('embed', { status: 'done', detail: `${embedding.length}-dim vector` });
 
-      if (rpcError) {
-        patchStep('search', { status: 'done', detail: `⚠ RPC error: ${rpcError} — using text fallback` });
-        searchResults = textFallback(text, items);
-        usedFallback = true;
-      } else if (searchResults.length === 0) {
-        patchStep('search', { status: 'done', detail: 'no embeddings in DB — using text fallback' });
-        searchResults = textFallback(text, items);
-        usedFallback = true;
+        /* Step 2 – vector search */
+        const scopeLabel = docScope === 'mine' ? 'your uploads' : `${items.length} item${items.length !== 1 ? 's' : ''}`;
+        patchStep('search', { status: 'active', detail: `scanning ${scopeLabel}…` });
+        const filterUserId = docScope === 'mine' ? session?.user?.id : null;
+        let rpcError = null;
+        try {
+          searchResults = await runVectorSearch(embedding, 8, filterUserId);
+        } catch (e) {
+          rpcError = e.message;
+        }
+
+        const scopedItems = docScope === 'mine'
+          ? items.filter(x => x.uploader?.id === session?.user?.id)
+          : items;
+
+        if (rpcError) {
+          patchStep('search', { status: 'done', detail: `⚠ RPC error: ${rpcError} — using text fallback` });
+          searchResults = textFallback(text, scopedItems);
+          usedFallback = true;
+        } else if (searchResults.length === 0) {
+          patchStep('search', { status: 'done', detail: 'no embeddings in DB — using text fallback' });
+          searchResults = textFallback(text, scopedItems);
+          usedFallback = true;
+        } else {
+          patchStep('search', { status: 'done', detail: `${searchResults.length} chunk${searchResults.length !== 1 ? 's' : ''} retrieved` });
+        }
+
+        /* Step 3 – evaluate */
+        deduped = dedupeByItem(searchResults);
+        setSources(deduped);
+        const aboveThreshold = deduped.filter(r => (r.similarity ?? 0) > 0.35);
+        patchStep('found', {
+          status: 'done',
+          label: `Found ${deduped.length} source${deduped.length !== 1 ? 's' : ''}`,
+          detail: deduped.length === 0
+            ? 'no matches — answering from general knowledge'
+            : usedFallback
+              ? `${deduped.length} text-match result${deduped.length !== 1 ? 's' : ''} (no embeddings stored yet)`
+              : aboveThreshold.length > 0
+                ? `${aboveThreshold.length} strong match${aboveThreshold.length !== 1 ? 'es' : ''} · ${deduped.length - aboveThreshold.length} supplemental`
+                : `${deduped.length} low-confidence result${deduped.length !== 1 ? 's' : ''}`,
+        });
       } else {
-        patchStep('search', { status: 'done', detail: `${searchResults.length} chunk${searchResults.length !== 1 ? 's' : ''} retrieved` });
+        /* Documents disabled — skip embed/search/evaluate */
+        patchStep('embed',    { status: 'done', detail: 'skipped (documents off)' });
+        patchStep('search',   { status: 'done', detail: 'skipped' });
+        patchStep('found',    { status: 'done', label: 'Documents off', detail: 'answering without library context' });
+        setSources([]);
       }
-
-      /* Step 3 – evaluate */
-      const deduped = dedupeByItem(searchResults);
-      setSources(deduped);
-      const aboveThreshold = deduped.filter(r => (r.similarity ?? 0) > 0.35);
-      patchStep('found', {
-        status: 'done',
-        label: `Found ${deduped.length} source${deduped.length !== 1 ? 's' : ''}`,
-        detail: deduped.length === 0
-          ? 'no matches — answering from general knowledge'
-          : usedFallback
-            ? `${deduped.length} text-match result${deduped.length !== 1 ? 's' : ''} (no embeddings stored yet)`
-            : aboveThreshold.length > 0
-              ? `${aboveThreshold.length} strong match${aboveThreshold.length !== 1 ? 'es' : ''} · ${deduped.length - aboveThreshold.length} supplemental`
-              : `${deduped.length} low-confidence result${deduped.length !== 1 ? 's' : ''}`,
-      });
 
       /* Step 4 – generate */
       patchStep('generate', { status: 'active' });
@@ -321,9 +357,11 @@ export default function ChatView({ session, items, onOpenContent }) {
         return `[${i + 1}] "${item.title}" (${item.content_type})${pct}\nExcerpt: ${excerpt}`;
       }).filter(Boolean);
 
-      const contextBlock = contextLines.length > 0
-        ? `\n\nRetrieved library content (reference as [1], [2], etc.):\n\n${contextLines.join('\n\n')}`
-        : `\n\nLibrary has ${items.length} items. No relevant matches for this query.`;
+      const contextBlock = !useDocuments
+        ? '\n\nDocument sourcing is disabled for this query. Answer from your own knowledge.'
+        : contextLines.length > 0
+          ? `\n\nRetrieved library content (reference as [1], [2], etc.):\n\n${contextLines.join('\n\n')}`
+          : `\n\nLibrary has ${items.length} items. No relevant matches for this query.`;
 
       const history = messages.slice(-20).map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
@@ -396,6 +434,7 @@ export default function ChatView({ session, items, onOpenContent }) {
         activeId={activeSessionId}
         onSelect={loadSession}
         onNew={createNewSession}
+        onDelete={deleteSession}
         loading={loadingHistory}
       />
 
@@ -444,6 +483,37 @@ export default function ChatView({ session, items, onOpenContent }) {
                   Hub Assistant · GPT-4o mini
                 </span>
               </div>
+
+              <div className="chat-doc-controls">
+                {/* Document sourcing toggle */}
+                <button
+                  className={`chat-doc-toggle ${useDocuments ? 'on' : 'off'}`}
+                  onClick={() => setUseDocuments(v => !v)}
+                  title={useDocuments ? 'Documents on — click to disable' : 'Documents off — click to enable'}
+                >
+                  <Icons.Search size={10} />
+                  {useDocuments ? 'Docs on' : 'Docs off'}
+                </button>
+
+                {/* Scope selector — only visible when documents are on */}
+                {useDocuments && (
+                  <div className="chat-scope-pills">
+                    <button
+                      className={`chat-scope-pill ${docScope === 'all' ? 'active' : ''}`}
+                      onClick={() => setDocScope('all')}
+                    >
+                      Team
+                    </button>
+                    <button
+                      className={`chat-scope-pill ${docScope === 'mine' ? 'active' : ''}`}
+                      onClick={() => setDocScope('mine')}
+                    >
+                      Mine
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 className="chat-view-send"
                 onClick={() => send()}
@@ -454,7 +524,10 @@ export default function ChatView({ session, items, onOpenContent }) {
             </div>
           </div>
           <div className="chat-view-hint">
-            Semantic search over {items.length} item{items.length !== 1 ? 's' : ''} · last 20 messages as context · Shift+Enter for new line
+            {useDocuments
+              ? `Searching ${docScope === 'mine' ? 'your uploads' : `all ${items.length} item${items.length !== 1 ? 's' : ''}`} · last 20 messages as context · Shift+Enter for new line`
+              : 'Document sourcing disabled — answering from model knowledge · Shift+Enter for new line'
+            }
           </div>
         </div>
       </div>
@@ -473,7 +546,7 @@ export default function ChatView({ session, items, onOpenContent }) {
 }
 
 /* ── Chat history sidebar ────────────────────────────── */
-function ChatHistorySidebar({ sessions, activeId, onSelect, onNew, loading }) {
+function ChatHistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, loading }) {
   return (
     <div className="chat-history-sidebar">
       <div className="chat-history-header">
@@ -503,18 +576,30 @@ function ChatHistorySidebar({ sessions, activeId, onSelect, onNew, loading }) {
           </div>
         )}
         {!loading && sessions.map(sess => (
-          <button
+          <div
             key={sess.id}
             className={`chat-session-item ${sess.id === activeId ? 'active' : ''}`}
             onClick={() => onSelect(sess)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => e.key === 'Enter' && onSelect(sess)}
           >
-            <div className="chat-session-name">
-              {sess.title || 'Untitled chat'}
+            <div className="chat-session-item-body">
+              <div className="chat-session-name">
+                {sess.title || 'Untitled chat'}
+              </div>
+              <div className="chat-session-meta">
+                <span>{relativeTime(sess.updated_at || sess.created_at)}</span>
+              </div>
             </div>
-            <div className="chat-session-meta">
-              <span>{relativeTime(sess.updated_at || sess.created_at)}</span>
-            </div>
-          </button>
+            <button
+              className="chat-session-delete"
+              title="Delete conversation"
+              onClick={e => { e.stopPropagation(); onDelete(sess.id); }}
+            >
+              <Icons.Trash size={12} />
+            </button>
+          </div>
         ))}
       </div>
     </div>

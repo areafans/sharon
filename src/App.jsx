@@ -10,6 +10,7 @@ import UploadModal from './components/UploadModal';
 import ShareModal from './components/ShareModal';
 import ChatPanel from './components/ChatPanel';
 import ChatView from './components/ChatView';
+import AnalyticsView from './components/AnalyticsView';
 import Toast from './components/Toast';
 import Icons from './components/Icons';
 
@@ -215,6 +216,13 @@ export default function App() {
             session={session}
             items={items}
             onOpenContent={setOpenItem}
+          />
+        )}
+        {view === 'analytics' && (
+          <AnalyticsView
+            items={items}
+            ideas={ideas}
+            session={session}
           />
         )}
       </main>

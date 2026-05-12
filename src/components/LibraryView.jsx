@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Icons from './Icons';
 import ContentCard from './ContentCard';
 
@@ -57,12 +57,36 @@ export default function LibraryView({
   }, [items, search, activeTags, typeFilter, sort, dateFilter, uploaderFilter, session]);
 
   const typeCounts = useMemo(() => {
-    const c = { all: items.length };
+    // Compute counts from items after applying all active filters EXCEPT typeFilter,
+    // so each pill shows how many items of that type exist within the current context.
+    const cutoffDays = DATE_CUTOFF_DAYS[dateFilter];
+    const cutoff = cutoffDays ? new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000) : null;
+
+    const base = items.filter(item => {
+      if (activeTags.length > 0 && !activeTags.every(t => item.tags?.includes(t))) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const upName = (item.uploader?.name || item.uploader?.email || '').toLowerCase();
+        const hay = `${item.title} ${item.description || ''} ${(item.tags || []).join(' ')} ${upName}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (cutoff && new Date(item.created_at) < cutoff) return false;
+      if (uploaderFilter === 'mine') {
+        if (item.uploader?.id !== session?.user?.id) return false;
+      } else if (uploaderFilter !== 'all') {
+        if (item.uploader?.id !== uploaderFilter) return false;
+      }
+      return true;
+    });
+
+    const c = { all: base.length };
     ['deck', 'video', 'demo', 'doc', 'code'].forEach(t => {
-      c[t] = items.filter(x => x.content_type === t).length;
+      c[t] = base.filter(x => x.content_type === t).length;
     });
     return c;
-  }, [items]);
+  }, [items, search, activeTags, dateFilter, uploaderFilter, session]);
+
+  const [layout, setLayout] = useState('grid');
 
   const hasSecondaryFilters = dateFilter !== 'all' || uploaderFilter !== 'all';
 
@@ -141,6 +165,23 @@ export default function LibraryView({
           </select>
           <Icons.ChevronDown size={12} />
         </div>
+
+        <div className="view-toggle">
+          <button
+            className={layout === 'grid' ? 'active' : ''}
+            onClick={() => setLayout('grid')}
+            title="Grid view"
+          >
+            <Icons.Grid size={14} />
+          </button>
+          <button
+            className={layout === 'list' ? 'active' : ''}
+            onClick={() => setLayout('list')}
+            title="List view"
+          >
+            <Icons.List size={14} />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -148,9 +189,9 @@ export default function LibraryView({
           Loading content…
         </div>
       ) : (
-        <div className="content-grid">
+        <div className={layout === 'grid' ? 'content-grid' : 'content-list'}>
           {filtered.map(item => (
-            <ContentCard key={item.id} item={item} onOpen={() => onOpenContent(item)} />
+            <ContentCard key={item.id} item={item} layout={layout} onOpen={() => onOpenContent(item)} />
           ))}
           {filtered.length === 0 && (
             <div style={{ gridColumn: '1 / -1', padding: 60, textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
