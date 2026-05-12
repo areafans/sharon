@@ -82,6 +82,77 @@ AI-generated content drafts. Stored as `jsonb` in the `artifact` column. Can be 
 
 ---
 
+## Architecture Diagrams
+
+### Upload & Embedding Pipeline
+
+```mermaid
+flowchart TD
+    A([User selects file\nor pastes URL]) --> B[Upload.jsx]
+
+    B --> C{File type?}
+
+    C -->|PDF| D1[pdfjs-dist\npage-by-page text extraction]
+    C -->|PPTX / DOCX| D2[JSZip\nXML text node parsing]
+    C -->|Image PNG/JPG| D3[GPT-4o Vision\nrichly describes visual content]
+    C -->|Video / Audio| D4[OpenAI Whisper\ntranscription]
+    C -->|Plain text / code| D5[file.text\ndirect read]
+    C -->|Unknown binary| D6[Fallback to\ntitle + description + tags]
+
+    D1 & D2 & D3 & D4 & D5 & D6 --> E[Prepend metadata header\ntitle · description · tags]
+
+    E --> F[GPT-4o\nAI metadata generation\nautofill title, description, tags]
+    F --> G[(Supabase\ncontent_items row\nai_metadata_generated = true)]
+
+    E --> H[chunkText\n2 000-char chunks\n200-char overlap]
+    H --> I[embedAllChunks\nbatches of 100]
+    I --> J[OpenAI\ntext-embedding-3-small\n1 536-dim vectors]
+    J --> K[Delete old embeddings\nfor this content_id]
+    K --> L[(Supabase\ncontent_embeddings\none row per chunk\nchunk_text · embedding · chunk_index)]
+
+    B --> M[Supabase Storage\ncontent-files bucket\npublic file URL]
+    M --> G
+    L --> N([embedding_status = complete\nchunk_count updated])
+    G --> N
+```
+
+---
+
+### Chat Query & RAG Flow
+
+```mermaid
+flowchart TD
+    A([User types question\nin Chat.jsx]) --> B[generateEmbedding\nOpenAI text-embedding-3-small\n1 536-dim query vector]
+
+    B --> C[searchSimilarContent\nfetch sourceCount × 4 chunks]
+    C --> D[(Supabase RPC\nmatch_content\npgvector cosine similarity\nLIMIT N chunks)]
+
+    D --> E[JS deduplication\nbest chunk per content_id\nsorted by similarity score]
+    E --> F[Slice to sourceCount\ndistinct sources]
+
+    F --> G{Any results?}
+
+    G -->|Yes| H[Build CONTEXT block\nSource 1: title · chunk_text\nSource 2: title · chunk_text\n...]
+    G -->|No| I[Answer from\ngeneral knowledge only]
+
+    H --> J[Construct OpenAI messages\nsystem: grounding prompt + CONTEXT\nhistory: prior turns\nuser: current question]
+    I --> J
+
+    J --> K[OpenAI\ngpt-4o\ntemperature 0.7\nmax_tokens 1 500]
+    K --> L[Assistant reply]
+
+    L --> M[Attach deduplicated\nsource cards to message]
+    M --> N([Render ChatMessage\nwith Sources chips\nlinked to file_url])
+
+    subgraph Scope control
+        SC1[searchScope = all → filter_user_id = null]
+        SC2[searchScope = mine → filter_user_id = user.id]
+    end
+    C -.->|scope param| Scope control
+```
+
+---
+
 ## AI Pipeline
 
 ### 1. Metadata Generation (Upload flow)
