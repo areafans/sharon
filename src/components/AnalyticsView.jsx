@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  LineChart, Line, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid,
 } from 'recharts';
 import Icons from './Icons';
 import Avatar from './Avatar';
@@ -69,9 +69,18 @@ export default function AnalyticsView({ items, ideas, session }) {
     return result.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
   }, [items]);
 
+  // Same refreshable-time-anchor pattern as LibraryView — see the comment
+  // there for why the `setTimeout(…, 0)` is necessary to satisfy both
+  // `react-hooks/purity` and `react-hooks/set-state-in-effect`.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(id);
+  }, [dateFilter]);
+
   const filtered = useMemo(() => {
     const cutoffDays = DATE_CUTOFF_DAYS[dateFilter];
-    const cutoff = cutoffDays ? new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000) : null;
+    const cutoff = cutoffDays ? new Date(now - cutoffDays * 24 * 60 * 60 * 1000) : null;
     return items.filter(item => {
       if (cutoff && new Date(item.created_at) < cutoff) return false;
       if (uploaderFilter === 'mine') {
@@ -81,7 +90,7 @@ export default function AnalyticsView({ items, ideas, session }) {
       }
       return true;
     });
-  }, [items, dateFilter, uploaderFilter, session]);
+  }, [items, dateFilter, uploaderFilter, session, now]);
 
   // Summary stats
   const totalViews = filtered.reduce((s, i) => s + (i.view_count || 0), 0);

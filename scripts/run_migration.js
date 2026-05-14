@@ -15,7 +15,7 @@
  */
 
 import { readFileSync, readdirSync } from 'fs';
-import { join, dirname, basename } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 

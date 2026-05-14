@@ -15,7 +15,6 @@ import ChatPanel from './components/ChatPanel';
 import ChatView from './components/ChatView';
 import AnalyticsView from './components/AnalyticsView';
 import Toast from './components/Toast';
-import Icons from './components/Icons';
 
 export default function App() {
   const [session, setSession] = useState(null);

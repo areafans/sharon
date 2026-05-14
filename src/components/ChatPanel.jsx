@@ -6,7 +6,7 @@ import { TYPE_META } from './Poster';
 import { parseAIConfig, buildLDContext } from '../lib/launchdarkly';
 import { runAgentGraph } from '../lib/agentGraph';
 
-function parseReply(text, searchResults, items) {
+function parseReply(text, searchResults) {
   let body = text;
   let draft = null;
   let cards = [];
@@ -110,8 +110,57 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
   const flags = useFlags();
   const aiConfig = parseAIConfig(flags['hub-assistant']);
 
+  // Load any existing chat history once we know which user we're rendering
+  // for. The work is inlined as an async IIFE so all state writes are
+  // visibly behind an `await` — the previous shape (calling an out-of-line
+  // `loadHistory()` helper) tripped `react-hooks/immutability` (used before
+  // declared) and `react-hooks/set-state-in-effect` (the lint rule can't
+  // trace async boundaries through a helper).
   useEffect(() => {
-    if (session) loadHistory();
+    if (!session) return;
+    const userId = session.user.id;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: sessions } = await supabase
+          .from('chat_sessions')
+          .select('id')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (cancelled) return;
+        const sess = sessions?.[0] ?? null;
+        if (!sess) return; // no sessions yet — one will be created lazily on first send
+
+        setChatSessionId(sess.id);
+
+        const { data: history } = await supabase
+          .from('chat_messages')
+          .select('role, content, created_at')
+          .eq('session_id', sess.id)
+          .order('created_at', { ascending: true })
+          .limit(50);
+
+        if (cancelled) return;
+        if (history?.length > 0) {
+          setMessages(history.map(m => ({
+            role: m.role === 'user' ? 'user' : 'ai',
+            body: m.content,
+            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          })));
+        }
+      } catch (err) {
+        console.warn('Chat history load failed:', err.message);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // Only re-run when the authed user changes; the full `session` object
+    // (refreshed tokens etc.) would re-fire this effect on every Supabase
+    // auth refresh and wipe in-memory chat state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
   useEffect(() => {
@@ -124,39 +173,6 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
       taRef.current.style.height = Math.min(120, taRef.current.scrollHeight) + 'px';
     }
   }, [input]);
-
-  async function loadHistory() {
-    try {
-      const { data: sessions } = await supabase
-        .from('chat_sessions')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1);
-
-      const sess = sessions?.[0] ?? null;
-      if (!sess) return; // no sessions yet — one will be created lazily on first send
-
-      setChatSessionId(sess.id);
-
-      const { data: history } = await supabase
-        .from('chat_messages')
-        .select('role, content, created_at')
-        .eq('session_id', sess.id)
-        .order('created_at', { ascending: true })
-        .limit(50);
-
-      if (history?.length > 0) {
-        setMessages(history.map(m => ({
-          role: m.role === 'user' ? 'user' : 'ai',
-          body: m.content,
-          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        })));
-      }
-    } catch (err) {
-      console.warn('Chat history load failed:', err.message);
-    }
-  }
 
   async function saveMessage(role, content, sessionId) {
     const sid = sessionId ?? chatSessionId;
@@ -229,7 +245,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
         similarity: (r.similarity || 0) / 100,
       }));
 
-      const { body, draft, cards } = parseReply(replyText, searchResults, items);
+      const { body, draft, cards } = parseReply(replyText, searchResults);
 
       // Surface the saved draft to the parent in case the agent saved one.
       if (savedDraft && onSaveIdea) onSaveIdea(savedDraft);

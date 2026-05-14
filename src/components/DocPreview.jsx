@@ -25,10 +25,22 @@ function PdfModalViewer({ url }) {
   const [error, setError] = useState(null);
   const [numPages, setNumPages] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Reset transient view state when the source URL changes. This is the
+  // "store information from previous renders" pattern from the React 19 docs
+  // (https://react.dev/reference/react/useState#storing-information-from-previous-renders):
+  // setting state during render — guarded so it only runs once per change —
+  // avoids the cascading-renders anti-pattern of calling these setters inside
+  // the effect body.
+  const [renderedUrl, setRenderedUrl] = useState(url);
+  if (renderedUrl !== url) {
+    setRenderedUrl(url);
     setLoading(true);
     setError(null);
+    setNumPages(0);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
 
     async function renderAll() {
       try {
@@ -65,7 +77,7 @@ function PdfModalViewer({ url }) {
         }
 
         if (!cancelled) setLoading(false);
-      } catch (e) {
+      } catch {
         if (!cancelled) {
           setError('Could not render preview');
           setLoading(false);

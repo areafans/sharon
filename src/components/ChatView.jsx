@@ -107,7 +107,7 @@ export default function ChatView({ session, items, onOpenContent }) {
   const [sessions, setSessions] = useState([]);           // list for sidebar
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [sources, setSources] = useState([]);
+  const [, setSources] = useState([]);
   const [input, setInput] = useState('');
   const [activeSteps, setActiveSteps] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
