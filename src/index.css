@@ -111,6 +111,8 @@ html, body {
   transition: background-color 0.18s ease, color 0.18s ease;
 }
 
+em, i { font-style: normal; }
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -725,7 +727,6 @@ img.brand-mark {
   z-index: 1;
   font-family: var(--font-display);
   font-size: 28px;
-  font-style: italic;
   font-weight: 400;
   text-align: center;
   padding: 12px 24px;
@@ -894,7 +895,6 @@ img.brand-mark {
   letter-spacing: -0.012em;
   line-height: 1.15;
 }
-.chat-empty-title em { font-style: italic; }
 .chat-empty-body { color: var(--muted); font-size: 13px; line-height: 1.55; }
 
 .suggested-prompts { display: flex; flex-direction: column; gap: 6px; }
@@ -1980,7 +1980,6 @@ img.brand-mark {
   line-height: 1.1;
   margin-bottom: 10px;
 }
-.chat-view-welcome-title em { font-style: italic; }
 .chat-view-welcome-sub {
   font-size: 14px;
   color: var(--muted);
@@ -2123,7 +2122,6 @@ img.brand-mark {
 .cv-prose p { margin: 0; }
 .cv-prose p + p { margin-top: 0.6em; }
 .cv-prose strong { color: var(--ink); font-weight: 650; }
-.cv-prose em { font-style: italic; color: var(--ink); }
 .cv-prose u { text-decoration: underline; text-underline-offset: 3px; }
 .cv-prose s { text-decoration: line-through; color: var(--muted); }
 
@@ -2173,7 +2171,6 @@ img.brand-mark {
   padding-left: 14px;
   margin: 0.75em 0;
   color: var(--ink-2);
-  font-style: italic;
 }
 .cv-prose hr {
   border: none;
@@ -2319,7 +2316,6 @@ img.brand-mark {
   padding: 6px 8px;
   border-radius: 6px;
   background: var(--bg-deep);
-  font-style: italic;
 }
 
 /* Messages in full chat view */
@@ -2661,7 +2657,6 @@ img.brand-mark {
   background: var(--bg-deep);
   border-radius: 6px;
   border-left: 2px solid var(--line-strong);
-  font-style: italic;
 }
 
 /* ── Auth page ─────────────────────────────────────────── */

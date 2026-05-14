@@ -394,7 +394,7 @@ function ChatEmpty({ onPrompt }) {
   return (
     <div className="chat-empty">
       <div>
-        <div className="chat-empty-title">Hi. What are you <em>working on?</em></div>
+        <div className="chat-empty-title">Hi. What are you working on?</div>
         <div className="chat-empty-body" style={{ marginTop: 8 }}>
           Ask in plain English. I&apos;ll search the hub for relevant decks, demos, docs and code — or help you draft something new from scratch.
         </div>
