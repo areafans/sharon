@@ -35,18 +35,6 @@ function titleFromMessage(text) {
   return clean.length > 52 ? clean.slice(0, 52).replace(/\s+\S*$/, '') + '…' : clean;
 }
 
-function relativeTime(ts) {
-  const diff = Date.now() - new Date(ts).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1)   return 'just now';
-  if (mins < 60)  return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)   return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7)   return `${days}d ago`;
-  return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
 async function embedText(text) {
   const res = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',
@@ -102,10 +90,18 @@ function textFallback(query, items) {
     }));
 }
 
+const MODE_OPTIONS = [
+  { k: 'auto',       label: 'Auto',         placeholder: 'Find content, describe an idea, or ask anything about the hub…' },
+  { k: 'find',       label: 'Find content', placeholder: 'Describe what you need to find — decks, demos, docs, code…' },
+  { k: 'brainstorm', label: 'Brainstorm',   placeholder: 'Describe what you want to make…' },
+];
+
 /* ── Main component ──────────────────────────────────── */
-export default function ChatView({ session, items, onOpenContent }) {
-  const [sessions, setSessions] = useState([]);           // list for sidebar
-  const [activeSessionId, setActiveSessionId] = useState(null);
+export default function ChatView({
+  session, items, onOpenContent,
+  activeChatSessionId,
+  onCreateChat, onTouchChat, onUpdateChatTitle,
+}) {
   const [messages, setMessages] = useState([]);
   const [, setSources] = useState([]);
   const [input, setInput] = useState('');
@@ -114,11 +110,13 @@ export default function ChatView({ session, items, onOpenContent }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [useDocuments, setUseDocuments] = useState(true);   // toggle document sourcing
   const [docScope, setDocScope] = useState('all');           // 'all' | 'mine'
+  const [mode, setMode] = useState('auto');                  // auto | find | brainstorm
   const bodyRef = useRef(null);
   const taRef = useRef(null);
   // Ref to always hold the latest steps state — avoids stale closure when
   // finalising the thinking trace (prevents double-render in React Strict Mode).
   const stepsRef = useRef(null);
+  const modeMeta = MODE_OPTIONS.find(m => m.k === mode) ?? MODE_OPTIONS[0];
 
   // AI Config — model, prompt, and params driven by LaunchDarkly
   const ldClient = useLDClient();
@@ -187,10 +185,40 @@ export default function ChatView({ session, items, onOpenContent }) {
     },
   };
 
-  /* Load session list on mount */
+  /* Load messages whenever the active conversation changes (or clears) */
   useEffect(() => {
-    if (session?.user?.id) fetchSessions();
-  }, [session?.user?.id]);
+    let cancelled = false;
+    if (!activeChatSessionId) {
+      setMessages([]);
+      setSources([]);
+      return undefined;
+    }
+    setLoadingHistory(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('chat_messages')
+          .select('role, content, created_at')
+          .eq('session_id', activeChatSessionId)
+          .order('created_at', { ascending: true })
+          .limit(100);
+        if (cancelled) return;
+        setMessages((data || []).map(m => ({
+          role: m.role === 'user' ? 'user' : 'ai',
+          body: m.content,
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          sources: [],
+          completedSteps: null,
+          elapsed: null,
+        })));
+      } catch (e) {
+        console.error('load chat messages:', e.message);
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeChatSessionId]);
 
   /* Scroll to bottom on new content */
   useEffect(() => {
@@ -215,88 +243,10 @@ export default function ChatView({ session, items, onOpenContent }) {
     });
   }
 
-  /* ── Session management ── */
-  async function fetchSessions() {
-    try {
-      const { data } = await supabase
-        .from('chat_sessions')
-        .select('id, title, created_at, updated_at')
-        .eq('user_id', session.user.id)
-        .order('updated_at', { ascending: false })
-        .limit(40);
-      setSessions(data || []);
-    } catch (e) { console.warn('fetchSessions:', e.message); }
-  }
-
-  async function createNewSession() {
-    try {
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .insert({ user_id: session.user.id, title: 'New chat' })
-        .select('id, title, created_at, updated_at')
-        .single();
-      if (error) throw error;
-      setSessions(prev => [data, ...prev]);
-      setActiveSessionId(data.id);
-      setMessages([]);
-      setSources([]);
-    } catch (e) { console.error('createNewSession:', e.message); }
-  }
-
-  async function loadSession(sess) {
-    if (sess.id === activeSessionId) return;
-    setActiveSessionId(sess.id);
-    setSources([]);
-    setLoadingHistory(true);
-    try {
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('role, content, created_at')
-        .eq('session_id', sess.id)
-        .order('created_at', { ascending: true })
-        .limit(100);
-      setMessages((data || []).map(m => ({
-        role: m.role === 'user' ? 'user' : 'ai',
-        body: m.content,
-        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        sources: [],
-        completedSteps: null,
-        elapsed: null,
-      })));
-    } catch (e) { console.error('loadSession:', e.message); }
-    finally { setLoadingHistory(false); }
-  }
-
-  async function deleteSession(sessId) {
-    try {
-      await supabase.from('chat_sessions').delete().eq('id', sessId);
-      setSessions(prev => {
-        const next = prev.filter(s => s.id !== sessId);
-        if (activeSessionId === sessId) {
-          if (next.length > 0) {
-            loadSession(next[0]);
-          } else {
-            setActiveSessionId(null);
-            setMessages([]);
-            setSources([]);
-          }
-        }
-        return next;
-      });
-    } catch (e) { console.error('deleteSession:', e.message); }
-  }
-
-  async function touchSession(sessionId) {
-    const now = new Date().toISOString();
-    await supabase.from('chat_sessions').update({ updated_at: now }).eq('id', sessionId);
-    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, updated_at: now } : s)
-      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)));
-  }
-
-  async function updateSessionTitle(sessionId, title) {
-    await supabase.from('chat_sessions').update({ title }).eq('id', sessionId);
-    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, title } : s));
-  }
+  /* ── Session management ──
+     Lifted to App.jsx so the Sidebar can render the conversation list across
+     every view. ChatView owns only the messages of the currently-active
+     conversation; everything else comes through props. */
 
   async function saveMessage(sessionId, role, content) {
     await supabase.from('chat_messages').insert({
@@ -313,22 +263,11 @@ export default function ChatView({ session, items, onOpenContent }) {
     setInput('');
 
     /* Ensure we have an active session */
-    let sessionId = activeSessionId;
+    let sessionId = activeChatSessionId;
     if (!sessionId) {
-      try {
-        const { data, error } = await supabase
-          .from('chat_sessions')
-          .insert({ user_id: session.user.id, title: titleFromMessage(text) })
-          .select('id, title, created_at, updated_at')
-          .single();
-        if (error) throw error;
-        sessionId = data.id;
-        setActiveSessionId(data.id);
-        setSessions(prev => [data, ...prev]);
-      } catch (e) {
-        console.error('Failed to create session:', e.message);
-        return;
-      }
+      const newSess = await onCreateChat?.(titleFromMessage(text));
+      if (!newSess) return;
+      sessionId = newSess.id;
     }
 
     setMessages(m => [...m, { role: 'user', body: text, time: 'now', sources: [], completedSteps: null }]);
@@ -336,7 +275,7 @@ export default function ChatView({ session, items, onOpenContent }) {
 
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
     if (isFirstMessage) {
-      updateSessionTitle(sessionId, titleFromMessage(text));
+      await onUpdateChatTitle?.(sessionId, titleFromMessage(text));
     }
 
     const initialSteps = STEP_DEFS.map(s => ({ ...s, status: 'pending', detail: '' }));
@@ -344,7 +283,7 @@ export default function ChatView({ session, items, onOpenContent }) {
     setActiveSteps(initialSteps);
 
     await saveMessage(sessionId, 'user', text);
-    await touchSession(sessionId);
+    await onTouchChat?.(sessionId);
 
     const t0 = Date.now();
     let searchResults = [];
@@ -435,7 +374,8 @@ export default function ChatView({ session, items, onOpenContent }) {
       ldClient?.track('chat-message-sent', {
         model: aiConfig.model,
         provider: aiConfig.provider,
-        mode: useDocuments ? (docScope === 'mine' ? 'find-mine' : 'find-team') : 'no-docs',
+        mode,
+        docScope: useDocuments ? docScope : 'off',
         queryLength: text.length,
         searchResultCount: deduped.length,
         topSimilarity: deduped[0]?.similarity ?? 0,
@@ -478,7 +418,7 @@ export default function ChatView({ session, items, onOpenContent }) {
       }]);
 
       await saveMessage(sessionId, 'assistant', reply);
-      await touchSession(sessionId);
+      await onTouchChat?.(sessionId);
     } catch (err) {
       console.error('ChatView send error:', err);
       patchStep('generate', { status: 'done', detail: `failed: ${err.message}` });
@@ -497,15 +437,19 @@ export default function ChatView({ session, items, onOpenContent }) {
 
   return (
     <div className="chat-view">
-      {/* ── Sessions sidebar ── */}
-      <ChatHistorySidebar
-        sessions={sessions}
-        activeId={activeSessionId}
-        onSelect={loadSession}
-        onNew={createNewSession}
-        onDelete={deleteSession}
-        loading={loadingHistory}
-      />
+      {/* ── Mode tabs ── */}
+      <div className="chat-mode-bar">
+        {MODE_OPTIONS.map(opt => (
+          <button
+            key={opt.k}
+            className={`chat-mode-tab ${mode === opt.k ? 'active' : ''}`}
+            onClick={() => setMode(opt.k)}
+            type="button"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Conversation ── */}
       <div className="chat-view-main">
@@ -538,9 +482,9 @@ export default function ChatView({ session, items, onOpenContent }) {
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
               }}
-              placeholder={activeSessionId
+              placeholder={activeChatSessionId
                 ? 'Continue the conversation…'
-                : 'Find content, describe an idea, or ask anything about the hub…'}
+                : modeMeta.placeholder}
               rows={1}
             />
             <div className="chat-view-input-controls">
@@ -599,67 +543,6 @@ export default function ChatView({ session, items, onOpenContent }) {
             }
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Chat history sidebar ────────────────────────────── */
-function ChatHistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, loading }) {
-  return (
-    <div className="chat-history-sidebar">
-      <div className="chat-history-header">
-        <span className="chat-history-title">Conversations</span>
-        <button
-          className="btn btn-ghost"
-          style={{ padding: '4px 6px' }}
-          onClick={onNew}
-          title="New chat"
-        >
-          <Icons.Plus size={14} />
-        </button>
-      </div>
-
-      <button className="new-chat-btn" onClick={onNew}>
-        <Icons.Plus size={13} />
-        New chat
-      </button>
-
-      <div className="chat-session-list">
-        {loading && (
-          <div className="chat-history-empty">Loading…</div>
-        )}
-        {!loading && sessions.length === 0 && (
-          <div className="chat-history-empty">
-            No conversations yet.<br />Start a new chat to begin.
-          </div>
-        )}
-        {!loading && sessions.map(sess => (
-          <div
-            key={sess.id}
-            className={`chat-session-item ${sess.id === activeId ? 'active' : ''}`}
-            onClick={() => onSelect(sess)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => e.key === 'Enter' && onSelect(sess)}
-          >
-            <div className="chat-session-item-body">
-              <div className="chat-session-name">
-                {sess.title || 'Untitled chat'}
-              </div>
-              <div className="chat-session-meta">
-                <span>{relativeTime(sess.updated_at || sess.created_at)}</span>
-              </div>
-            </div>
-            <button
-              className="chat-session-delete"
-              title="Delete conversation"
-              onClick={e => { e.stopPropagation(); onDelete(sess.id); }}
-            >
-              <Icons.Trash size={12} />
-            </button>
-          </div>
-        ))}
       </div>
     </div>
   );
