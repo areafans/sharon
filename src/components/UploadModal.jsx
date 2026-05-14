@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { processContentForEmbedding } from '../lib/embeddings';
 import Icons from './Icons';
@@ -26,7 +26,13 @@ export default function UploadModal({ session, onClose, onUploaded }) {
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
-  const [source, setSource] = useState('file');
+  // `source` is user-controllable, but for `type === 'code'` it's always
+  // 'external' (the toggle is hidden in that case). Derive the effective
+  // value rather than syncing via an effect — avoids the
+  // `react-hooks/set-state-in-effect` anti-pattern and keeps a single source
+  // of truth.
+  const [sourceState, setSource] = useState('file');
+  const source = type === 'code' ? 'external' : sourceState;
   const [externalUrl, setExternalUrl] = useState('');
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -35,10 +41,6 @@ export default function UploadModal({ session, onClose, onUploaded }) {
   const [embedProgress, setEmbedProgress] = useState(0);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (type === 'code') setSource('external');
-  }, [type]);
 
   function addTag() {
     const t = tagInput.trim().replace(/^#/, '');
@@ -70,7 +72,6 @@ export default function UploadModal({ session, onClose, onUploaded }) {
       if (source === 'file' && file) {
         setEmbedStatus('Uploading file…');
         setEmbedProgress(15);
-        const ext = file.name.split('.').pop();
         const path = `${session.user.id}/${Date.now()}-${file.name}`;
         const { data: storageData, error: storageErr } = await supabase.storage
           .from('content-files')

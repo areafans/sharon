@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
 import Avatar from './Avatar';
-import Poster, { TYPE_META } from './Poster';
+import { TYPE_META } from './Poster';
 import DocPreview from './DocPreview';
 import { Stars, StarsInput } from './Stars';
 
@@ -41,7 +41,7 @@ function Comment({ c }) {
   );
 }
 
-export default function DetailModal({ item, session, onClose, onShare, onUpdated }) {
+export default function DetailModal({ item, session, onClose, onShare, onUpdated: _onUpdated }) {
   const [userRating, setUserRating] = useState(0);
   const [avgRating, setAvgRating] = useState(item.avg_rating ?? 0);
   const [ratingCount, setRatingCount] = useState(item.rating_count ?? 0);

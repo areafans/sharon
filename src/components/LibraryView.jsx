@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Icons from './Icons';
 import ContentCard from './ContentCard';
 
@@ -30,9 +30,23 @@ export default function LibraryView({
     return result.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
   }, [items]);
 
+  // `Date.now()` is impure during render (`react-hooks/purity`) and a
+  // synchronous `setNow(Date.now())` inside a `useEffect` body trips
+  // `react-hooks/set-state-in-effect`. The pattern in the React docs for
+  // a refreshable time anchor is `useState(() => Date.now())` plus a
+  // setState inside an async callback (see the Clock example on
+  // https://react.dev/reference/eslint-plugin-react-hooks/lints/purity).
+  // We follow the same shape: schedule the refresh on the next tick, so
+  // the setState is in a callback rather than synchronously in the body.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(id);
+  }, [dateFilter]);
+
   const filtered = useMemo(() => {
     const cutoffDays = DATE_CUTOFF_DAYS[dateFilter];
-    const cutoff = cutoffDays ? new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000) : null;
+    const cutoff = cutoffDays ? new Date(now - cutoffDays * 24 * 60 * 60 * 1000) : null;
 
     return items.filter(item => {
       if (typeFilter !== 'all' && item.content_type !== typeFilter) return false;
@@ -55,13 +69,13 @@ export default function LibraryView({
       if (sort === 'views') return (b.view_count ?? 0) - (a.view_count ?? 0);
       return new Date(b.created_at) - new Date(a.created_at);
     });
-  }, [items, search, activeTags, typeFilter, sort, dateFilter, uploaderFilter, session]);
+  }, [items, search, activeTags, typeFilter, sort, dateFilter, uploaderFilter, session, now]);
 
   const typeCounts = useMemo(() => {
     // Compute counts from items after applying all active filters EXCEPT typeFilter,
     // so each pill shows how many items of that type exist within the current context.
     const cutoffDays = DATE_CUTOFF_DAYS[dateFilter];
-    const cutoff = cutoffDays ? new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000) : null;
+    const cutoff = cutoffDays ? new Date(now - cutoffDays * 24 * 60 * 60 * 1000) : null;
 
     const base = items.filter(item => {
       if (activeTags.length > 0 && !activeTags.every(t => item.tags?.includes(t))) return false;
@@ -85,7 +99,7 @@ export default function LibraryView({
       c[t] = base.filter(x => x.content_type === t).length;
     });
     return c;
-  }, [items, search, activeTags, dateFilter, uploaderFilter, session]);
+  }, [items, search, activeTags, dateFilter, uploaderFilter, session, now]);
 
   const [layout, setLayout] = useState('grid');
 

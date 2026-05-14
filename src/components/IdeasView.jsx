@@ -13,9 +13,13 @@ function timeAgo(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function IdeasView({ ideas, onOpenContent, onOpenIdea, onNewIdea, onIdeaUpdated, session }) {
-  const user = session?.user;
-
+export default function IdeasView({
+  ideas,
+  onOpenContent: _onOpenContent,
+  onOpenIdea,
+  onNewIdea,
+  onIdeaUpdated: _onIdeaUpdated,
+}) {
   return (
     <div className="ideas-view">
       <div className="library-header">

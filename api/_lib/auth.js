@@ -138,7 +138,10 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FE
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (err) {
     if (err?.name === 'AbortError') {
-      throw new Error(`Upstream request to ${new URL(url).host} timed out after ${timeoutMs}ms`);
+      throw new Error(
+        `Upstream request to ${new URL(url).host} timed out after ${timeoutMs}ms`,
+        { cause: err },
+      );
     }
     throw err;
   } finally {
