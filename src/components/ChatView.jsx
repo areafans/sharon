@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
-import { parseAIConfig, callAI, aiConfigLabel } from '../lib/launchdarkly';
+import { parseAIConfig, callAI, aiConfigLabel, trackAIInvocation } from '../lib/launchdarkly';
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
@@ -442,13 +442,30 @@ export default function ChatView({ session, items, onOpenContent }) {
       });
 
       const systemWithContext = aiConfig.systemPrompt + CHATVIEW_SYSTEM_SUFFIX + contextBlock;
-      const reply = await callAI(aiConfig, systemWithContext, history, text, toolExecutors);
+      const aiStart = Date.now();
+      let reply, replyUsage;
+      try {
+        const out = await callAI(aiConfig, systemWithContext, history, text, toolExecutors);
+        reply = out.text;
+        replyUsage = out.usage;
+        trackAIInvocation(ldClient, 'hub-assistant', aiConfig, {
+          durationMs: Date.now() - aiStart,
+          success: true,
+          usage: replyUsage,
+        });
+      } catch (e) {
+        trackAIInvocation(ldClient, 'hub-assistant', aiConfig, {
+          durationMs: Date.now() - aiStart,
+          success: false,
+          errorMessage: e.message,
+        });
+        throw e;
+      }
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
       patchStep('generate', { status: 'done', detail: `responded in ${elapsed}s` });
       await new Promise(r => setTimeout(r, 750));
 
-      // Read frozen steps from ref — never from stale closure.
       const frozenSteps = stepsRef.current ? stepsRef.current.map(s => ({ ...s })) : null;
       stepsRef.current = null;
       setActiveSteps(null);
@@ -478,10 +495,8 @@ export default function ChatView({ session, items, onOpenContent }) {
     }
   }
 
-  const hasSources = sources.length > 0;
-
   return (
-    <div className={`chat-view ${hasSources ? '' : 'no-sources'}`}>
+    <div className="chat-view">
       {/* ── Sessions sidebar ── */}
       <ChatHistorySidebar
         sessions={sessions}
@@ -585,16 +600,6 @@ export default function ChatView({ session, items, onOpenContent }) {
           </div>
         </div>
       </div>
-
-      {/* ── Sources panel ── */}
-      {hasSources && (
-        <SourcesPanel
-          sources={sources} items={items}
-          onOpenContent={onOpenContent}
-          highlightId={highlightId}
-          onHover={setHighlightId}
-        />
-      )}
     </div>
   );
 }
@@ -829,50 +834,5 @@ function SourceLinks({ sources, items, onOpenContent, onHoverSource, highlightId
         );
       })}
     </div>
-  );
-}
-
-/* ── Sources panel ───────────────────────────────────── */
-function SourcesPanel({ sources, items, onOpenContent, highlightId, onHover }) {
-  return (
-    <aside className="sources-panel">
-      <div className="sources-panel-header">
-        <Icons.Search size={11} /> Retrieved sources
-        <span className="sources-panel-count">{sources.length}</span>
-      </div>
-      <div className="sources-panel-body">
-        {sources.map((s, i) => {
-          const item = items.find(x => x.id === s.content_id);
-          if (!item) return null;
-          const score = Math.round((s.similarity ?? 0) * 100);
-          const excerpt = s.chunk_text
-            ? s.chunk_text.slice(0, 220).replace(/\s+/g, ' ').trim() + (s.chunk_text.length > 220 ? '…' : '')
-            : item.description || '';
-          return (
-            <button
-              key={`${s.content_id}-${i}`}
-              className={`source-card ${highlightId === item.id ? 'highlight' : ''}`}
-              onClick={() => onOpenContent(item)}
-              onMouseEnter={() => onHover(item.id)}
-              onMouseLeave={() => onHover(null)}
-            >
-              <div className="source-card-head">
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className={`source-type-badge ${item.content_type}`}>{item.content_type}</span>
-                {score > 0 && <span className="source-score">{score}%</span>}
-              </div>
-              <div className="source-card-title">{item.title}</div>
-              <div className="source-card-uploader">
-                {(item.uploader?.name || item.uploader?.email || 'Unknown').split(' ')[0]}
-                {(item.tags || []).slice(0, 2).length > 0 && <> · {item.tags.slice(0, 2).join(' · ')}</>}
-              </div>
-              {excerpt && <div className="source-card-excerpt">{excerpt}</div>}
-            </button>
-          );
-        })}
-      </div>
-    </aside>
   );
 }

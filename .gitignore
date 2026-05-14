@@ -40,3 +40,6 @@ dist-ssr
 
 # TypeScript incremental build
 *.tsbuildinfo
+
+# Scraped content — large binary/media files, generated locally
+scraper/scraped_content/

@@ -1,9 +1,0 @@
-[
-  ".github",
-  ".gitignore",
-  "CODEOWNERS",
-  "LICENSE.txt",
-  "README.md",
-  "main.py",
-  "pyproject.toml"
-]

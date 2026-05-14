@@ -336,6 +336,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
       // Run the agent graph — orchestrator routes, then specialist executes.
       // All agent configs (model, prompt, tools) are served live from LD AI Configs.
       const { replyText, route, agentLabel } = await runAgentGraph({
+        ldClient,
         query: text,
         history: historyMsgs,
         flags,

@@ -34,6 +34,7 @@ export const DEFAULT_AI_CONFIG = {
   maxTokens: 800,
   temperature: 0.7,
   tools: null,
+  meta: null,
   systemPrompt: `You are the Hub Assistant for SE Content Hub — an internal content repository for a Solutions Engineering team.
 
 You operate in two modes based on the message:
@@ -82,6 +83,17 @@ export function parseAIConfig(flagVariation) {
     modelName.startsWith('o1') ||
     modelName.startsWith('o3');
 
+  // _ldMeta is included by LaunchDarkly when serving an AI Config flag.
+  // Fields like `variationKey` and `version` are required for the AI Config
+  // monitoring dashboard to attribute events to the right variation.
+  const meta = flagVariation?._ldMeta
+    ? {
+        variationKey: flagVariation._ldMeta.variationKey ?? '',
+        version: flagVariation._ldMeta.version ?? 1,
+        mode: flagVariation._ldMeta.mode ?? 'completion',
+      }
+    : null;
+
   return {
     model: modelName,
     provider: isOpenAI ? 'openai' : 'anthropic',
@@ -89,6 +101,7 @@ export function parseAIConfig(flagVariation) {
     temperature: params.temperature ?? DEFAULT_AI_CONFIG.temperature,
     systemPrompt,
     tools,
+    meta,
   };
 }
 
@@ -194,10 +207,6 @@ const MAX_TOOL_ITERATIONS = 6;
  * @returns {Promise<string>} The assistant's final reply text
  */
 export async function callAI(aiConfig, systemPrompt, history, userMessage, toolExecutors = null) {
-  // Scope tool definitions to only the tools this agent has registered in LD.
-  // aiConfig.tools === null  → legacy path: use all definitions
-  // aiConfig.tools === []    → no tools (e.g. orchestrator)
-  // aiConfig.tools === [...]  → specific subset
   const allowedKeys = aiConfig.tools;
   const filteredClaude = allowedKeys == null
     ? TOOL_DEFINITIONS_CLAUDE
@@ -209,6 +218,10 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
   const hasTools = toolExecutors
     && Object.keys(toolExecutors).length > 0
     && filteredClaude.length > 0;
+
+  // Accumulate token usage across all iterations of the tool loop so a single
+  // logical "invocation" reports a single set of input/output/total counts.
+  const usage = { input: 0, output: 0, total: 0 };
 
   if (aiConfig.provider === 'openai') {
     const messages = [
@@ -238,6 +251,12 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
       const data = await res.json();
       const choice = data.choices[0];
 
+      if (data.usage) {
+        usage.input  += data.usage.prompt_tokens     ?? 0;
+        usage.output += data.usage.completion_tokens ?? 0;
+        usage.total  += data.usage.total_tokens      ?? 0;
+      }
+
       if (choice.finish_reason === 'tool_calls') {
         messages.push({
           role: 'assistant',
@@ -254,7 +273,7 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
         );
         messages.push(...results);
       } else {
-        return choice.message.content ?? '';
+        return { text: choice.message.content ?? '', usage };
       }
     }
     throw new Error('Max tool iterations reached');
@@ -283,6 +302,12 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
     if (!res.ok) throw new Error(`Claude API error: ${res.status}`);
     const data = await res.json();
 
+    if (data.usage) {
+      usage.input  += data.usage.input_tokens  ?? 0;
+      usage.output += data.usage.output_tokens ?? 0;
+      usage.total  += (data.usage.input_tokens ?? 0) + (data.usage.output_tokens ?? 0);
+    }
+
     if (data.stop_reason === 'tool_use') {
       messages.push({ role: 'assistant', content: data.content });
       const toolResults = await Promise.all(
@@ -299,10 +324,71 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
       messages.push({ role: 'user', content: toolResults });
     } else {
       const textBlock = data.content.find(b => b.type === 'text');
-      return textBlock?.text ?? '';
+      return { text: textBlock?.text ?? '', usage };
     }
   }
   throw new Error('Max tool iterations reached');
+}
+
+function uuid() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+/**
+ * Emit the LaunchDarkly AI Config tracking events that populate the AI Config
+ * monitoring dashboard. Mirrors @launchdarkly/server-sdk-ai's LDAIConfigTrackerImpl
+ * exactly so events from the browser match what the dashboard expects:
+ *
+ *   - $ld:ai:generation:success / :error — success/failure count
+ *   - $ld:ai:duration:total              — duration in ms
+ *   - $ld:ai:tokens:input/output/total   — token usage
+ *
+ * Every event for a single invocation MUST carry the same trackData object
+ * (same runId, configKey, variationKey, version, modelName, providerName).
+ *
+ * @param {object|null} ldClient   - useLDClient() result
+ * @param {string}      configKey  - AI Config key (e.g. "hub-orchestrator")
+ * @param {object}      aiConfig   - parseAIConfig() result (carries meta + model)
+ * @param {object}      result     - { durationMs, success, usage?, errorMessage? }
+ */
+export function trackAIInvocation(ldClient, configKey, aiConfig, result) {
+  if (!ldClient) {
+    console.warn('[LD AI] no ldClient — skipping tracking for', configKey);
+    return;
+  }
+
+  const trackData = {
+    runId: uuid(),
+    configKey,
+    variationKey: aiConfig.meta?.variationKey ?? '',
+    version: aiConfig.meta?.version ?? 1,
+    modelName: aiConfig.model,
+    providerName: aiConfig.provider,
+  };
+
+  const events = [
+    ['$ld:ai:duration:total', result.durationMs],
+    [result.success ? '$ld:ai:generation:success' : '$ld:ai:generation:error', 1],
+  ];
+  if (result.usage) {
+    if (result.usage.total > 0)  events.push(['$ld:ai:tokens:total',  result.usage.total]);
+    if (result.usage.input > 0)  events.push(['$ld:ai:tokens:input',  result.usage.input]);
+    if (result.usage.output > 0) events.push(['$ld:ai:tokens:output', result.usage.output]);
+  }
+
+  console.log(`[LD AI] tracking ${configKey}`, trackData, 'events:', events.map(e => e[0]));
+  events.forEach(([key, value]) => ldClient.track(key, trackData, value));
+
+  // Force the events to flush to LaunchDarkly immediately rather than waiting
+  // for the next batch interval (default ~5s) so the dashboard updates faster.
+  if (typeof ldClient.flush === 'function') {
+    ldClient.flush().catch(err => console.warn('[LD AI] flush error:', err.message));
+  }
 }
 
 /**

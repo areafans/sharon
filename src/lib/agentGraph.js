@@ -1,4 +1,4 @@
-import { parseAIConfig, callAI } from './launchdarkly';
+import { parseAIConfig, callAI, trackAIInvocation } from './launchdarkly';
 
 /**
  * Agent keys match their LD AI Config keys exactly.
@@ -13,16 +13,58 @@ export const AGENT_KEYS = {
 };
 
 export const ROUTE_CONFIG = {
-  retrieval:     { label: 'Content Retriever', hint: 'Searching the library…',           agent: AGENT_KEYS.RETRIEVER },
-  'demo-writer': { label: 'Demo Writer',        hint: 'Drafting your content…',           agent: AGENT_KEYS.DEMO_WRITER },
-  researcher:    { label: 'SE Researcher',      hint: 'Searching the web…',               agent: AGENT_KEYS.RESEARCHER },
+  retrieval:     { label: 'Content Retriever', hint: 'Searching the library…', agent: AGENT_KEYS.RETRIEVER },
+  'demo-writer': { label: 'Demo Writer',        hint: 'Drafting your content…', agent: AGENT_KEYS.DEMO_WRITER },
+  researcher:    { label: 'SE Researcher',      hint: 'Searching the web…',     agent: AGENT_KEYS.RESEARCHER },
 };
 
 /**
- * Parse the orchestrator's JSON routing decision.
- * Falls back to 'retrieval' if the response isn't valid JSON or the route
- * isn't one of the three known values.
+ * The LaunchDarkly JS Client SDK strips `_ldMeta` from served flag values, so
+ * variationKey/version are not available at runtime in the browser. Until LD
+ * ships a browser AI SDK, we hardcode the metadata required by the AI Config
+ * monitoring dashboard. Each agent config has exactly one variation, so this
+ * mapping is unambiguous; bump `version` here when you publish a new variation.
  */
+const AGENT_META = {
+  [AGENT_KEYS.ORCHESTRATOR]: { variationKey: 'haiku-router',     version: 1 },
+  [AGENT_KEYS.RETRIEVER]:    { variationKey: 'haiku-retriever',  version: 1 },
+  [AGENT_KEYS.DEMO_WRITER]:  { variationKey: 'sonnet-writer',    version: 1 },
+  [AGENT_KEYS.RESEARCHER]:   { variationKey: 'sonnet-researcher',version: 1 },
+};
+
+/**
+ * Execute a single agent call with full LD AI Config tracking.
+ * Emits the reserved $ld:ai:* events required to populate the AI Config
+ * monitoring dashboard with invocation count, duration, tokens, success rate.
+ */
+async function runAgent({ ldClient, configKey, aiConfig, systemPrompt, history, userMessage, toolExecutors }) {
+  // Inject the hardcoded variation metadata if the served flag value didn't
+  // include it (browser SDKs strip _ldMeta).
+  const aiConfigWithMeta = {
+    ...aiConfig,
+    meta: aiConfig.meta ?? AGENT_META[configKey] ?? null,
+  };
+
+  const start = Date.now();
+  try {
+    const { text, usage } = await callAI(aiConfigWithMeta, systemPrompt, history, userMessage, toolExecutors);
+    trackAIInvocation(ldClient, configKey, aiConfigWithMeta, {
+      durationMs: Date.now() - start,
+      success: true,
+      usage,
+    });
+    return text;
+  } catch (err) {
+    trackAIInvocation(ldClient, configKey, aiConfigWithMeta, {
+      durationMs: Date.now() - start,
+      success: false,
+      errorMessage: err.message,
+    });
+    throw err;
+  }
+}
+
+/** Parse the orchestrator's JSON routing decision; default to retrieval on error. */
 function parseRoutingDecision(response) {
   try {
     const cleaned = response.replace(/```(?:json)?\n?|\n?```/g, '').trim();
@@ -39,22 +81,29 @@ function parseRoutingDecision(response) {
  *   1. Orchestrator (hub-orchestrator) — classifies intent, returns route JSON
  *   2. Specialist (hub-retriever | hub-demo-writer | hub-researcher) — answers
  *
- * Each agent's model, system prompt, temperature, and tool list comes from
- * its corresponding LD AI Config variation — swappable in the LD UI in real time.
+ * Both agents emit LD AI Config tracking events via trackAIInvocation.
  *
  * @param {object} params
+ * @param {object}   params.ldClient       - useLDClient() result (required for tracking)
  * @param {string}   params.query          - Current user message
  * @param {Array}    params.history        - [{role, content}] conversation history
  * @param {object}   params.flags          - Full useFlags() map from LD React SDK
  * @param {object}   params.toolExecutors  - Map of tool name → async fn(args) → string
- * @param {Function} params.onRoute        - Called after orchestrator decides:
- *                                           ({ label, hint, reason, route }) => void
- * @returns {Promise<{ replyText, route, agentLabel, reason }>}
+ * @param {Function} [params.onRoute]      - Called after orchestrator decides:
+ *                                            ({ label, hint, reason, route }) => void
  */
-export async function runAgentGraph({ query, history, flags, toolExecutors, onRoute }) {
+export async function runAgentGraph({ ldClient, query, history, flags, toolExecutors, onRoute }) {
   // ── Step 1: Orchestrator ────────────────────────────────────────────────────
   const orchConfig = parseAIConfig(flags[AGENT_KEYS.ORCHESTRATOR]);
-  const orchResponse = await callAI(orchConfig, orchConfig.systemPrompt, [], query, null);
+  const orchResponse = await runAgent({
+    ldClient,
+    configKey: AGENT_KEYS.ORCHESTRATOR,
+    aiConfig: orchConfig,
+    systemPrompt: orchConfig.systemPrompt,
+    history: [],
+    userMessage: query,
+    toolExecutors: null,
+  });
   const decision = parseRoutingDecision(orchResponse);
 
   const routeInfo = ROUTE_CONFIG[decision.route] ?? ROUTE_CONFIG.retrieval;
@@ -62,13 +111,15 @@ export async function runAgentGraph({ query, history, flags, toolExecutors, onRo
 
   // ── Step 2: Specialist ──────────────────────────────────────────────────────
   const specialistConfig = parseAIConfig(flags[routeInfo.agent]);
-  const replyText = await callAI(
-    specialistConfig,
-    specialistConfig.systemPrompt,
+  const replyText = await runAgent({
+    ldClient,
+    configKey: routeInfo.agent,
+    aiConfig: specialistConfig,
+    systemPrompt: specialistConfig.systemPrompt,
     history,
-    query,
+    userMessage: query,
     toolExecutors,
-  );
+  });
 
   return {
     replyText,
