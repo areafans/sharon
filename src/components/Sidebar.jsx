@@ -4,17 +4,48 @@ import Icons from './Icons';
 import Avatar from './Avatar';
 
 const TAGS_COLLAPSED_KEY = 'sidebar.tags.collapsed';
+const CONVERSATIONS_COLLAPSED_KEY = 'sidebar.conversations.collapsed';
 
-export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag, items, ideas, session }) {
+function relativeTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)   return 'just now';
+  if (mins < 60)  return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)   return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7)   return `${days}d ago`;
+  return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+export default function Sidebar({
+  view, onNav, onUpload,
+  activeTags, onToggleTag,
+  items, ideas, session,
+  chatSessions = [], activeChatSessionId,
+  onSelectChat, onNewChat, onDeleteChat,
+}) {
   const user = session?.user;
   const [tagsCollapsed, setTagsCollapsed] = useState(
     () => localStorage.getItem(TAGS_COLLAPSED_KEY) === '1'
+  );
+  const [conversationsCollapsed, setConversationsCollapsed] = useState(
+    () => localStorage.getItem(CONVERSATIONS_COLLAPSED_KEY) === '1'
   );
 
   function toggleTagsCollapsed() {
     setTagsCollapsed(prev => {
       const next = !prev;
       localStorage.setItem(TAGS_COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
+
+  function toggleConversationsCollapsed() {
+    setConversationsCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(CONVERSATIONS_COLLAPSED_KEY, next ? '1' : '0');
       return next;
     });
   }
@@ -71,6 +102,56 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
           <span className="nav-icon"><Icons.BarChart size={16} /></span>
           Analytics
         </button>
+      </div>
+
+      <div className="nav-section sidebar-conversations">
+        <button
+          type="button"
+          className="nav-label nav-label-toggle"
+          onClick={toggleConversationsCollapsed}
+          aria-expanded={!conversationsCollapsed}
+        >
+          <span>Conversations</span>
+          {conversationsCollapsed
+            ? <Icons.ChevronRight size={12} stroke="currentColor" />
+            : <Icons.ChevronDown size={12} stroke="currentColor" />}
+        </button>
+        {!conversationsCollapsed && (
+          <>
+            <button className="sidebar-new-chat" onClick={onNewChat}>
+              <Icons.Plus size={12} /> New chat
+            </button>
+            {chatSessions.length === 0 && (
+              <div className="sidebar-conversations-empty">
+                No chats yet
+              </div>
+            )}
+            {chatSessions.slice(0, 10).map(sess => (
+              <div
+                key={sess.id}
+                className={`chat-session-item ${sess.id === activeChatSessionId ? 'active' : ''}`}
+                onClick={() => onSelectChat?.(sess.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && onSelectChat?.(sess.id)}
+              >
+                <div className="chat-session-item-body">
+                  <div className="chat-session-name">{sess.title || 'Untitled chat'}</div>
+                  <div className="chat-session-meta">
+                    <span>{relativeTime(sess.updated_at || sess.created_at)}</span>
+                  </div>
+                </div>
+                <button
+                  className="chat-session-delete"
+                  title="Delete conversation"
+                  onClick={e => { e.stopPropagation(); onDeleteChat?.(sess.id); }}
+                >
+                  <Icons.Trash size={12} />
+                </button>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {view === 'library' && (

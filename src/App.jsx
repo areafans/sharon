@@ -11,7 +11,6 @@ import DetailModal from './components/DetailModal';
 import IdeaModal from './components/IdeaModal';
 import UploadModal from './components/UploadModal';
 import ShareModal from './components/ShareModal';
-import ChatPanel from './components/ChatPanel';
 import ChatView from './components/ChatView';
 import AnalyticsView from './components/AnalyticsView';
 import Toast from './components/Toast';
@@ -35,8 +34,10 @@ export default function App() {
   const [shareItem, setShareItem] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  // Chat
-  const [chatCollapsed, setChatCollapsed] = useState(false);
+  // Chat sessions — lifted from ChatView so the Sidebar can show the
+  // conversation list across every view, not just when chat is active.
+  const [chatSessions, setChatSessions] = useState([]);
+  const [activeChatSessionId, setActiveChatSessionId] = useState(null);
 
   // Notifications
   const [toasts, setToasts] = useState([]);
@@ -85,7 +86,62 @@ export default function App() {
     if (!session) return;
     fetchContent();
     fetchIdeas();
+    fetchChatSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  async function fetchChatSessions() {
+    if (!session?.user?.id) return;
+    const { data } = await supabase
+      .from('chat_sessions')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', session.user.id)
+      .order('updated_at', { ascending: false })
+      .limit(40);
+    setChatSessions(data || []);
+  }
+
+  // Lazily creates a session and switches to the chat view. `title` is
+  // optional — ChatView updates it once the user sends their first message.
+  async function createChatSession(title = 'New chat') {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .insert({ user_id: session.user.id, title })
+      .select('id, title, created_at, updated_at')
+      .single();
+    if (error) { console.error('createChatSession:', error.message); return null; }
+    setChatSessions(prev => [data, ...prev]);
+    setActiveChatSessionId(data.id);
+    return data;
+  }
+
+  async function deleteChatSession(id) {
+    await supabase.from('chat_sessions').delete().eq('id', id);
+    setChatSessions(prev => {
+      const next = prev.filter(s => s.id !== id);
+      if (activeChatSessionId === id) setActiveChatSessionId(next[0]?.id ?? null);
+      return next;
+    });
+  }
+
+  async function touchChatSession(id) {
+    const now = new Date().toISOString();
+    await supabase.from('chat_sessions').update({ updated_at: now }).eq('id', id);
+    setChatSessions(prev => prev
+      .map(s => s.id === id ? { ...s, updated_at: now } : s)
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+    );
+  }
+
+  async function updateChatSessionTitle(id, title) {
+    await supabase.from('chat_sessions').update({ title }).eq('id', id);
+    setChatSessions(prev => prev.map(s => s.id === id ? { ...s, title } : s));
+  }
+
+  function selectChatSession(id) {
+    setActiveChatSessionId(id);
+    setView('chat');
+  }
 
   async function fetchContent() {
     setDataLoading(true);
@@ -155,20 +211,6 @@ export default function App() {
     setTimeout(() => setToasts(ts => ts.filter(x => x.id !== id)), 2600);
   }
 
-  async function handleSaveIdea(draft) {
-    if (!draft) return;
-    const { error } = await supabase.from('ideas').insert({
-      created_by: session.user.id,
-      title: draft.title,
-      artifact: draft,
-      published: false,
-    });
-    if (!error) {
-      fetchIdeas();
-      pushToast('Saved to Ideas — visible to the team', 'check');
-    }
-  }
-
   async function handleDeleteContent(id) {
     // Optimistic update — remove immediately so the UI feels instant
     setItems(prev => prev.filter(x => x.id !== id));
@@ -204,7 +246,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${view === 'chat' ? 'chat-fullscreen' : chatCollapsed ? 'chat-collapsed' : ''}`}>
+    <div className="app">
       <Sidebar
         view={view}
         onNav={setView}
@@ -214,6 +256,14 @@ export default function App() {
         items={visibleItems}
         ideas={ideas}
         session={session}
+        chatSessions={chatSessions}
+        activeChatSessionId={activeChatSessionId}
+        onSelectChat={selectChatSession}
+        onNewChat={async () => {
+          await createChatSession();
+          setView('chat');
+        }}
+        onDeleteChat={deleteChatSession}
       />
 
       <main className="main">
@@ -221,9 +271,13 @@ export default function App() {
           view={view}
           search={search}
           onSearch={setSearch}
-          onNew={() => {
-            if (view === 'library') setUploadOpen(true);
-            else if (view === 'ideas') setChatCollapsed(false);
+          onNew={async () => {
+            if (view === 'library') {
+              setUploadOpen(true);
+            } else if (view === 'ideas') {
+              await createChatSession();
+              setView('chat');
+            }
           }}
           theme={theme}
           onTheme={setTheme}
@@ -259,7 +313,10 @@ export default function App() {
             ideas={ideas}
             onOpenContent={setOpenItem}
             onOpenIdea={setOpenIdea}
-            onNewIdea={() => setChatCollapsed(false)}
+            onNewIdea={async () => {
+              await createChatSession();
+              setView('chat');
+            }}
             session={session}
             onIdeaUpdated={fetchIdeas}
           />
@@ -269,6 +326,10 @@ export default function App() {
             session={session}
             items={visibleItems}
             onOpenContent={setOpenItem}
+            activeChatSessionId={activeChatSessionId}
+            onCreateChat={createChatSession}
+            onTouchChat={touchChatSession}
+            onUpdateChatTitle={updateChatSessionTitle}
           />
         )}
         {view === 'analytics' && (
@@ -279,17 +340,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {view !== 'chat' && (
-        <ChatPanel
-          collapsed={chatCollapsed}
-          onToggle={() => setChatCollapsed(c => !c)}
-          onOpenContent={setOpenItem}
-          onSaveIdea={handleSaveIdea}
-          session={session}
-          items={visibleItems}
-        />
-      )}
 
       {openItem && (
         <DetailModal
