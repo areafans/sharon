@@ -35,7 +35,7 @@ module.exports = {
       fontFamily: {
         sans:    ['Manrope', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
         mono:    ['Geist Mono', 'ui-monospace', 'monospace'],
-        display: ['Newsreader', 'Georgia', 'serif'],
+        display: ['Sora', 'system-ui', '-apple-system', 'sans-serif'],
       },
       fontSize: {
         xs:    ['10.5px', { lineHeight: '1.4' }],
