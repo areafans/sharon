@@ -79,7 +79,7 @@ Every component reads from CSS variables, so the swap is instant and no React st
 Three families, three jobs:
 
 - **Manrope** — UI, body, buttons, navigation
-- **Newsreader** — display titles, page headers, editorial moments. Uses optical sizing — set `font-variation-settings: "opsz" 60` on big headings (≥32px) for proper display contrast.
+- **Sora** — display titles, page headers, editorial moments. Loaded at weight 700 (Bold) only.
 - **Geist Mono** — metadata, counts, labels, kbd, technical chrome
 
 Mono labels are uppercased with `0.06em` tracking by convention — see `.label-mono`.

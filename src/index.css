@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Geist+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@700&family=Geist+Mono:wght@400;500;600&display=swap');
 
 :root {
   --bg: #F7F5F0;
@@ -94,7 +94,7 @@
 
   --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
-  --font-display: 'Newsreader', Georgia, serif;
+  --font-display: 'Sora', system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -439,7 +439,6 @@ img.brand-mark {
   font-weight: 500;
   letter-spacing: -0.018em;
   line-height: 1;
-  font-variation-settings: "opsz" 60;
 }
 .page-sub {
   font-family: var(--font-mono);
@@ -732,7 +731,6 @@ img.brand-mark {
   padding: 12px 24px;
   line-height: 1.05;
   letter-spacing: -0.005em;
-  font-variation-settings: "opsz" 36;
 }
 
 .card-body {
@@ -895,7 +893,6 @@ img.brand-mark {
   font-weight: 500;
   letter-spacing: -0.012em;
   line-height: 1.15;
-  font-variation-settings: "opsz" 36;
 }
 .chat-empty-title em { font-style: italic; }
 .chat-empty-body { color: var(--muted); font-size: 13px; line-height: 1.55; }
@@ -1048,7 +1045,6 @@ img.brand-mark {
   font-weight: 500;
   margin-bottom: 8px;
   letter-spacing: -0.012em;
-  font-variation-settings: "opsz" 32;
 }
 .idea-draft-summary { font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; line-height: 1.55; }
 .idea-draft-outline {
@@ -1234,7 +1230,6 @@ img.brand-mark {
   letter-spacing: -0.018em;
   line-height: 1.05;
   margin: 0 0 12px;
-  font-variation-settings: "opsz" 60;
 }
 .detail-desc {
   font-size: 15px;
@@ -1487,7 +1482,6 @@ img.brand-mark {
   line-height: 1;
   font-weight: 500;
   letter-spacing: -0.015em;
-  font-variation-settings: "opsz" 48;
 }
 .aggregate-rating .out-of { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 
@@ -1500,7 +1494,7 @@ img.brand-mark {
   padding: 18px 32px;
   border-bottom: 1px solid var(--line);
 }
-.upload-head h2 { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 500; letter-spacing: -0.012em; font-variation-settings: "opsz" 36; }
+.upload-head h2 { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 700; letter-spacing: -0.012em; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label {
@@ -1643,7 +1637,6 @@ img.brand-mark {
   line-height: 1.1;
   letter-spacing: -0.012em;
   margin: 0;
-  font-variation-settings: "opsz" 32;
 }
 .idea-card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
 .idea-card .idea-outline {
@@ -1985,7 +1978,6 @@ img.brand-mark {
   font-weight: 500;
   letter-spacing: -0.018em;
   line-height: 1.1;
-  font-variation-settings: "opsz" 48;
   margin-bottom: 10px;
 }
 .chat-view-welcome-title em { font-style: italic; }
@@ -2706,7 +2698,6 @@ img.brand-mark {
   letter-spacing: -0.015em;
   line-height: 1.15;
   margin: 0 0 6px;
-  font-variation-settings: "opsz" 36;
 }
 
 .auth-subtitle {
