@@ -24,10 +24,7 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
     <aside className="sidebar">
       <div className="brand">
         <img className="brand-mark" src="/sharon-logo.png" alt="Sharon" />
-        <div className="brand-name">
-          Sharon
-          <small>Content Assistant</small>
-        </div>
+        <div className="brand-name">Sharon</div>
       </div>
 
       <div className="nav-section">
