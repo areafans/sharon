@@ -7,7 +7,7 @@ import Icons from './Icons';
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 
-const SYSTEM_PROMPT = `You are the Hub Assistant for SE Content Hub — an internal content repository for a Solutions Engineering team.
+const SYSTEM_PROMPT = `You are Sharon, an AI assistant for an internal content repository used by a Solutions Engineering team.
 
 You have two modes:
 

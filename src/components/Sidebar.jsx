@@ -23,10 +23,10 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">SE</div>
+        <img className="brand-mark" src="/sharon-logo.png" alt="Sharon" />
         <div className="brand-name">
-          Content Hub
-          <small>Solutions Engineering</small>
+          Sharon
+          <small>Content Assistant</small>
         </div>
       </div>
 

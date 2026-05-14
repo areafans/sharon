@@ -170,7 +170,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="loading-screen">
-        <div className="brand-mark">SE</div>
+        <img className="brand-mark" src="/sharon-logo.png" alt="Sharon" />
         <div className="thinking"><span /><span /><span /></div>
       </div>
     );
