@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Avatar from './Avatar';
 import Icons from './Icons';
 import Poster from './Poster';
@@ -15,10 +16,26 @@ function timeAgo(dateStr) {
 
 const TYPE_LABELS = { deck: 'Deck', video: 'Video', demo: 'Demo', doc: 'Doc', code: 'Code' };
 
-export default function ContentCard({ item, layout = 'grid', onOpen }) {
+export default function ContentCard({ item, layout = 'grid', onOpen, onDelete }) {
   const uploader = item.uploader || {};
   const avgRating = item.avg_rating ?? item.rating ?? 0;
   const tags = item.tags || [];
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  function handleDeleteClick(e) {
+    e.stopPropagation();
+    if (confirmingDelete) {
+      onDelete && onDelete(item.id);
+    } else {
+      setConfirmingDelete(true);
+      setTimeout(() => setConfirmingDelete(false), 3000);
+    }
+  }
+
+  function handleCancelDelete(e) {
+    e.stopPropagation();
+    setConfirmingDelete(false);
+  }
 
   if (layout === 'list') {
     return (
@@ -57,6 +74,35 @@ export default function ContentCard({ item, layout = 'grid', onOpen }) {
               <Icons.Eye size={11} /> {item.view_count ?? 0}
             </span>
             <span className="meta">{timeAgo(item.created_at)}</span>
+            {onDelete && (
+              confirmingDelete ? (
+                <span className="row" style={{ gap: 4 }} onClick={e => e.stopPropagation()}>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                    onClick={handleDeleteClick}
+                  >
+                    Confirm delete
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 10.5 }}
+                    onClick={handleCancelDelete}
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  className="btn btn-ghost btn-sm delete-btn"
+                  title="Delete"
+                  onClick={handleDeleteClick}
+                  style={{ color: 'var(--muted)', padding: '2px 4px' }}
+                >
+                  <Icons.Trash size={13} />
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
@@ -100,6 +146,35 @@ export default function ContentCard({ item, layout = 'grid', onOpen }) {
           <span className="meta">
             <Icons.Eye size={11} /> {item.view_count ?? 0}
           </span>
+          {onDelete && (
+            confirmingDelete ? (
+              <span className="row" style={{ gap: 4, marginLeft: 6 }} onClick={e => e.stopPropagation()}>
+                <button
+                  className="btn btn-danger btn-sm"
+                  style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '2px 7px' }}
+                  onClick={handleDeleteClick}
+                >
+                  Delete?
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 10, padding: '2px 6px' }}
+                  onClick={handleCancelDelete}
+                >
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <button
+                className="btn btn-ghost btn-sm delete-btn"
+                title="Delete"
+                onClick={handleDeleteClick}
+                style={{ color: 'var(--muted)', padding: '2px 4px', marginLeft: 4 }}
+              >
+                <Icons.Trash size={12} />
+              </button>
+            )
+          )}
         </div>
       </div>
     </div>

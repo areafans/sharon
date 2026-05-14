@@ -4,6 +4,7 @@ import Icons from './Icons';
 import { TYPE_META } from './Poster';
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 
 const SYSTEM_PROMPT = `You are the Hub Assistant for SE Content Hub — an internal content repository for a Solutions Engineering team.
 
@@ -247,25 +248,28 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
         content: m.body,
       }));
 
-      // 4. Call OpenAI
-      const chatRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      // 4. Call Claude
+      const chatRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': CLAUDE_KEY,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'claude-3-5-haiku-20241022',
+          system: SYSTEM_PROMPT + contextBlock,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT + contextBlock },
             ...historyMsgs,
             { role: 'user', content: text },
           ],
           max_tokens: 800,
-          temperature: 0.7,
         }),
       });
 
-      if (!chatRes.ok) throw new Error(`OpenAI API error: ${chatRes.status}`);
+      if (!chatRes.ok) throw new Error(`Claude API error: ${chatRes.status}`);
       const chatData = await chatRes.json();
-      const replyText = chatData.choices[0].message.content;
+      const replyText = chatData.content[0].text;
 
       const { body, draft, cards } = parseReply(replyText, searchResults, items);
 
@@ -380,7 +384,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
             </button>
           </div>
         </div>
-        <div className="chat-disclaimer">GPT-4o mini · last 20 messages as context</div>
+        <div className="chat-disclaimer">Claude 3.5 Haiku · last 20 messages as context</div>
       </div>
     </div>
   );

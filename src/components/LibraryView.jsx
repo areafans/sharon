@@ -16,6 +16,7 @@ export default function LibraryView({
   uploaderFilter, onUploaderFilter,
   session,
   onOpenContent,
+  onDeleteContent,
 }) {
   const uploaders = useMemo(() => {
     const seen = new Set();
@@ -191,7 +192,13 @@ export default function LibraryView({
       ) : (
         <div className={layout === 'grid' ? 'content-grid' : 'content-list'}>
           {filtered.map(item => (
-            <ContentCard key={item.id} item={item} layout={layout} onOpen={() => onOpenContent(item)} />
+            <ContentCard
+              key={item.id}
+              item={item}
+              layout={layout}
+              onOpen={() => onOpenContent(item)}
+              onDelete={onDeleteContent}
+            />
           ))}
           {filtered.length === 0 && (
             <div style={{ gridColumn: '1 / -1', padding: 60, textAlign: 'center', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>

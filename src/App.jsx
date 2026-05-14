@@ -6,6 +6,7 @@ import TopBar from './components/TopBar';
 import LibraryView from './components/LibraryView';
 import IdeasView from './components/IdeasView';
 import DetailModal from './components/DetailModal';
+import IdeaModal from './components/IdeaModal';
 import UploadModal from './components/UploadModal';
 import ShareModal from './components/ShareModal';
 import ChatPanel from './components/ChatPanel';
@@ -29,6 +30,7 @@ export default function App() {
 
   // Modals
   const [openItem, setOpenItem] = useState(null);
+  const [openIdea, setOpenIdea] = useState(null);
   const [shareItem, setShareItem] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -145,6 +147,15 @@ export default function App() {
     }
   }
 
+  async function handleDeleteContent(id) {
+    const { error } = await supabase.from('content_items').delete().eq('id', id);
+    if (!error) {
+      fetchContent();
+      if (openItem?.id === id) setOpenItem(null);
+      pushToast('Item deleted from library', 'check');
+    }
+  }
+
   function handleUploaded() {
     fetchContent();
     pushToast('Added · embedding generated — discoverable in chat', 'ai');
@@ -200,12 +211,14 @@ export default function App() {
             onUploaderFilter={setUploaderFilter}
             session={session}
             onOpenContent={setOpenItem}
+            onDeleteContent={handleDeleteContent}
           />
         )}
         {view === 'ideas' && (
           <IdeasView
             ideas={ideas}
             onOpenContent={setOpenItem}
+            onOpenIdea={setOpenIdea}
             onNewIdea={() => setChatCollapsed(false)}
             session={session}
             onIdeaUpdated={fetchIdeas}
@@ -245,6 +258,12 @@ export default function App() {
           onClose={() => setOpenItem(null)}
           onShare={() => { setShareItem(openItem); setOpenItem(null); }}
           onUpdated={fetchContent}
+        />
+      )}
+      {openIdea && (
+        <IdeaModal
+          idea={openIdea}
+          onClose={() => setOpenIdea(null)}
         />
       )}
       {shareItem && (

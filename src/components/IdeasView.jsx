@@ -13,7 +13,7 @@ function timeAgo(dateStr) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function IdeasView({ ideas, onOpenContent, onNewIdea, onIdeaUpdated, session }) {
+export default function IdeasView({ ideas, onOpenContent, onOpenIdea, onNewIdea, onIdeaUpdated, session }) {
   const user = session?.user;
 
   return (
@@ -98,6 +98,7 @@ export default function IdeasView({ ideas, onOpenContent, onNewIdea, onIdeaUpdat
                   <button
                     className="btn btn-secondary btn-sm"
                     style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, letterSpacing: '0.06em', textTransform: 'uppercase' }}
+                    onClick={() => onOpenIdea && onOpenIdea(idea)}
                   >
                     Open
                   </button>

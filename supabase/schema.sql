@@ -128,12 +128,14 @@ create trigger content_items_updated_at
 -- ============================================================
 
 create table if not exists public.content_embeddings (
-  id          uuid primary key default gen_random_uuid(),
-  content_id  uuid references public.content_items(id) on delete cascade,
-  chunk_index integer not null default 0,
-  chunk_text  text,
-  embedding   vector(1536),
-  created_at  timestamptz default now()
+  id              uuid primary key default gen_random_uuid(),
+  content_id      uuid references public.content_items(id) on delete cascade,
+  chunk_index     integer not null default 0,
+  chunk_text      text,
+  embedding       vector(1536),
+  doc_title       text,       -- denormalized from content_items for faster retrieval
+  doc_description text,       -- denormalized from content_items for faster retrieval
+  created_at      timestamptz default now()
 );
 
 -- Backfill columns for databases created before this migration

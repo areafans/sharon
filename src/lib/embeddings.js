@@ -5,7 +5,7 @@
  *   Text / code       → file.text()
  *   PDF               → pdfjs-dist (per-page text extraction)
  *   PPTX / DOCX       → JSZip (XML text nodes)
- *   Images            → GPT-4o Vision (generates a rich text description)
+ *   Images            → Claude Vision (generates a rich text description)
  *   Video / Audio     → OpenAI Whisper (transcription)
  *   Anything else     → falls back to title + description + tags
  *
@@ -21,7 +21,8 @@ import { supabase } from './supabase';
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-const OPENAI_KEY    = import.meta.env.VITE_OPENAI_API_KEY;
+const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 export const CHUNK_SIZE    = 2000;  // characters per chunk (~500 tokens)
 export const CHUNK_OVERLAP = 200;   // overlap between consecutive chunks
 const EMBED_BATCH   = 100;          // max chunks per embeddings API call
@@ -98,15 +99,27 @@ async function describeImage(file) {
     reader.readAsDataURL(file);
   });
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CLAUDE_KEY,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1500,
       messages: [{
         role: 'user',
         content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: file.type || 'image/png',
+              data: base64,
+            },
+          },
           {
             type: 'text',
             text: 'Describe this image comprehensively for search indexing in a sales enablement library. ' +
@@ -114,18 +127,17 @@ async function describeImage(file) {
                   'elements in detail. Be thorough — this description is the only representation of this image ' +
                   'in the search index.',
           },
-          { type: 'image_url', image_url: { url: `data:${file.type};base64,${base64}`, detail: 'high' } },
         ],
       }],
     }),
   });
 
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'GPT-4o Vision failed');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Claude Vision failed: ${res.status}`);
   }
   const data = await res.json();
-  return data.choices[0].message.content;
+  return data.content[0].text;
 }
 
 async function transcribeMedia(file) {
@@ -176,7 +188,7 @@ export async function extractText(file, onProgress) {
     return extractFromDOCX(file);
   }
   if (EXT_IMAGE.test(name)) {
-    onProgress?.('Analyzing image with GPT-4o Vision…');
+    onProgress?.('Analyzing image with Claude Vision…');
     return describeImage(file);
   }
   if (EXT_VIDEO.test(name) || EXT_AUDIO.test(name)) {
@@ -293,10 +305,12 @@ export async function processContentForEmbedding(file, contentId, metadata, onPr
   // 6. Store
   onProgress?.(`Storing ${chunks.length} embedding${chunks.length !== 1 ? 's' : ''}…`);
   const rows = chunks.map((chunk, i) => ({
-    content_id:  contentId,
-    chunk_index: i,
-    chunk_text:  chunk,
-    embedding:   embeddings[i],
+    content_id:      contentId,
+    chunk_index:     i,
+    chunk_text:      chunk,
+    embedding:       embeddings[i],
+    doc_title:       metadata.title       || null,
+    doc_description: metadata.description || null,
   }));
 
   const { error } = await supabase.from('content_embeddings').insert(rows);

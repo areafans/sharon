@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import Icons from './Icons';
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 
 const SYSTEM_PROMPT = `You are the Hub Assistant for SE Content Hub — an internal content repository for a Solutions Engineering team.
 
@@ -368,27 +369,30 @@ export default function ChatView({ session, items, onOpenContent }) {
         content: m.body,
       }));
 
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': CLAUDE_KEY,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'claude-3-5-haiku-20241022',
+          system: SYSTEM_PROMPT + contextBlock,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT + contextBlock },
             ...history,
             { role: 'user', content: text },
           ],
           max_tokens: 1100,
-          temperature: 0.65,
         }),
       });
 
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`OpenAI ${res.status}: ${body.slice(0, 100)}`);
+        throw new Error(`Claude ${res.status}: ${body.slice(0, 100)}`);
       }
       const data = await res.json();
-      const reply = data.choices[0].message.content;
+      const reply = data.content[0].text;
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
       patchStep('generate', { status: 'done', detail: `responded in ${elapsed}s` });
@@ -480,7 +484,7 @@ export default function ChatView({ session, items, onOpenContent }) {
                   <Icons.Sparkle size={10} />
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Hub Assistant · GPT-4o mini
+                  Hub Assistant · Claude 3.5 Haiku
                 </span>
               </div>
 
