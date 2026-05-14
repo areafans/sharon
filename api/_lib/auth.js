@@ -44,11 +44,30 @@ function getAllowedOrigins() {
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
+function isSameOrigin(origin, host) {
+  if (!host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 function checkOrigin(req) {
   const origin = req.headers?.origin;
   // Same-origin requests (e.g. server-side fetch) won't send an Origin header.
   // Allow them through — the JWT check is the real gate.
   if (!origin) return { ok: true };
+
+  // Auto-allow same-origin POSTs. The browser sets Origin from the page's
+  // own URL, so if Origin's host matches the request Host it came from our
+  // own page — that's the legitimate use case. A cross-site attacker can't
+  // forge Origin, so this is safe. Falling back to x-forwarded-host handles
+  // Vercel / other proxies that rewrite Host internally.
+  const forwarded = req.headers?.['x-forwarded-host'];
+  const host = (Array.isArray(forwarded) ? forwarded[0] : forwarded) || req.headers?.host;
+  if (isSameOrigin(origin, host)) return { ok: true };
+
   const allowed = getAllowedOrigins();
   if (allowed.includes(origin)) return { ok: true };
   return { ok: false, status: 403, error: `Origin ${origin} not allowed` };
