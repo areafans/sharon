@@ -14,8 +14,11 @@
     "storage:setup": "node scripts/setup_storage.js"
   },
   "dependencies": {
+    "@launchdarkly/node-server-sdk": "^9.10.14",
+    "@launchdarkly/server-sdk-ai": "^0.20.0",
     "@supabase/supabase-js": "^2.105.4",
     "jszip": "^3.10.1",
+    "launchdarkly-react-client-sdk": "^3.9.1",
     "pdfjs-dist": "^5.7.284",
     "pg": "^8.20.0",
     "react": "^19.2.6",

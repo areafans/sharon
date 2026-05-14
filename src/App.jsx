@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLDClient, useFlags } from 'launchdarkly-react-client-sdk';
 import { supabase } from './lib/supabase';
+import { buildLDContext, applyContentAccess } from './lib/launchdarkly';
 import Auth from './pages/Auth';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
@@ -48,6 +50,11 @@ export default function App() {
   // Theme
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
+  // LaunchDarkly
+  const ldClient = useLDClient();
+  const flags = useFlags();
+  const contentAccessFlag = flags['gallery-content-access'] ?? { mode: 'all' };
+
   // Auth listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -65,6 +72,14 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Identify user in LaunchDarkly after auth resolves
+  useEffect(() => {
+    if (!ldClient) return;
+    ldClient.identify(buildLDContext(session)).catch(e =>
+      console.warn('[LD] identify failed:', e)
+    );
+  }, [session?.user?.id, ldClient]);
 
   // Fetch data when authenticated
   useEffect(() => {
@@ -122,6 +137,14 @@ export default function App() {
     if (data) setIdeas(data);
   }
 
+  // Apply LaunchDarkly content-access flag to filter gallery items.
+  // The chat assistant receives the same filtered set, so it can only
+  // surface content the current user is authorised to see.
+  const visibleItems = useMemo(
+    () => applyContentAccess(items, contentAccessFlag),
+    [items, contentAccessFlag]
+  );
+
   function toggleTag(tag) {
     if (tag === null) { setActiveTags([]); return; }
     setActiveTags(a => a.includes(tag) ? a.filter(x => x !== tag) : [...a, tag]);
@@ -164,6 +187,7 @@ export default function App() {
 
   function handleUploaded() {
     fetchContent();
+    ldClient?.track('content-item-uploaded');
     pushToast('Added · embedding generated — discoverable in chat', 'ai');
   }
 
@@ -188,7 +212,7 @@ export default function App() {
         onUpload={() => setUploadOpen(true)}
         activeTags={activeTags}
         onToggleTag={toggleTag}
-        items={items}
+        items={visibleItems}
         ideas={ideas}
         session={session}
       />
@@ -203,7 +227,7 @@ export default function App() {
         />
         {view === 'library' && (
           <LibraryView
-            items={items}
+            items={visibleItems}
             loading={dataLoading}
             search={search}
             activeTags={activeTags}
@@ -216,7 +240,14 @@ export default function App() {
             uploaderFilter={uploaderFilter}
             onUploaderFilter={setUploaderFilter}
             session={session}
-            onOpenContent={setOpenItem}
+            onOpenContent={(item) => {
+              ldClient?.track('content-item-opened', {
+                contentType: item.content_type,
+                tags: item.tags || [],
+                flagVariation: contentAccessFlag?.mode ?? 'all',
+              });
+              setOpenItem(item);
+            }}
             onDeleteContent={handleDeleteContent}
           />
         )}
@@ -233,13 +264,13 @@ export default function App() {
         {view === 'chat' && (
           <ChatView
             session={session}
-            items={items}
+            items={visibleItems}
             onOpenContent={setOpenItem}
           />
         )}
         {view === 'analytics' && (
           <AnalyticsView
-            items={items}
+            items={visibleItems}
             ideas={ideas}
             session={session}
           />
@@ -253,7 +284,7 @@ export default function App() {
           onOpenContent={setOpenItem}
           onSaveIdea={handleSaveIdea}
           session={session}
-          items={items}
+          items={visibleItems}
         />
       )}
 

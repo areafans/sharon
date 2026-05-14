@@ -22,7 +22,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
   `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 export const CHUNK_SIZE    = 2000;  // characters per chunk (~500 tokens)
 export const CHUNK_OVERLAP = 200;   // overlap between consecutive chunks
 const EMBED_BATCH   = 100;          // max chunks per embeddings API call
@@ -99,15 +98,14 @@ async function describeImage(file) {
     reader.readAsDataURL(file);
   });
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('/api/claude', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': CLAUDE_KEY,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1500,
       messages: [{
         role: 'user',

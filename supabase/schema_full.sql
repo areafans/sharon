@@ -1,11 +1,26 @@
 -- ============================================================
--- Sharon — Full Database Schema
--- Run this against your Supabase project via the SQL Editor
--- or via scripts/run_migration.js
+-- Sharon — Complete Database Schema
+-- Generated from schema.sql + migrate_v2 through migrate_v6
+--
+-- Use this file for a brand-new Supabase project instead of
+-- running individual migration files manually.
+--
+-- Steps:
+--   1. Open your Supabase project → SQL Editor
+--   2. Paste and run this entire file
+--   3. Run:  npm run storage:setup
+--   4. You are done — DO NOT run npm run db:migrate after this.
+--      The schema_migrations table is pre-populated so the
+--      migration runner knows all files are already applied.
 -- ============================================================
 
--- Enable pgvector for semantic search
+
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
 create extension if not exists vector;
+
 
 -- ============================================================
 -- ENUMS
@@ -21,9 +36,10 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+
 -- ============================================================
 -- USERS
--- Mirrors auth.users. Populated via trigger on signup.
+-- Mirrors auth.users; populated via trigger on signup.
 -- ============================================================
 
 create table if not exists public.users (
@@ -34,7 +50,6 @@ create table if not exists public.users (
   created_at  timestamptz default now()
 );
 
--- Trigger: auto-populate public.users when a new auth user is created
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -62,28 +77,30 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+
 -- ============================================================
 -- CONTENT ITEMS
+-- Includes all columns added through migrate_v2
 -- ============================================================
 
 create table if not exists public.content_items (
-  id              uuid primary key default gen_random_uuid(),
-  uploader_id     uuid references public.users(id) on delete set null,
-  title           text not null,
-  description     text,
-  content_type    content_type_enum not null,
-  file_url        text,
+  id            uuid primary key default gen_random_uuid(),
+  uploader_id   uuid references public.users(id) on delete set null,
+  title         text not null,
+  description   text,
+  content_type  content_type_enum not null,
+  file_url      text,
   is_external_url boolean default false,
-  tags            text[] default '{}',
-  view_count      integer default 0,
-  share_count     integer default 0,
-  -- File metadata
+  tags          text[] default '{}',
+  view_count    integer default 0,
+  share_count   integer default 0,
+  -- File metadata (added in v2)
   file_name             text,
   file_size_bytes       bigint,
   file_mime_type        text,
-  -- AI metadata tracking
+  -- AI metadata (added in v2)
   ai_metadata_generated boolean default false,
-  -- Embedding tracking
+  -- Embedding tracking (added in v2)
   embedding_status      text default 'none',  -- 'none' | 'complete' | 'failed'
   embedding_chunk_count integer,
   embedding_model       text,
@@ -91,24 +108,10 @@ create table if not exists public.content_items (
   chunk_overlap         integer,
   embedded_at           timestamptz,
   extraction_source     text,  -- 'text' | 'pdf' | 'pptx' | 'docx' | 'vision' | 'whisper' | 'metadata'
-  created_at      timestamptz default now(),
-  updated_at      timestamptz default now()
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
 );
 
--- Backfill columns for databases created before migration v2
-alter table public.content_items add column if not exists file_name             text;
-alter table public.content_items add column if not exists file_size_bytes       bigint;
-alter table public.content_items add column if not exists file_mime_type        text;
-alter table public.content_items add column if not exists ai_metadata_generated boolean default false;
-alter table public.content_items add column if not exists embedding_status      text default 'none';
-alter table public.content_items add column if not exists embedding_chunk_count integer;
-alter table public.content_items add column if not exists embedding_model       text;
-alter table public.content_items add column if not exists chunk_size            integer;
-alter table public.content_items add column if not exists chunk_overlap         integer;
-alter table public.content_items add column if not exists embedded_at           timestamptz;
-alter table public.content_items add column if not exists extraction_source     text;
-
--- Auto-update updated_at
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -122,9 +125,10 @@ create trigger content_items_updated_at
   before update on public.content_items
   for each row execute procedure public.set_updated_at();
 
+
 -- ============================================================
 -- CONTENT EMBEDDINGS
--- vector(1536) matches Anthropic's embedding model output
+-- Includes doc_title / doc_description added in v5
 -- ============================================================
 
 create table if not exists public.content_embeddings (
@@ -133,27 +137,57 @@ create table if not exists public.content_embeddings (
   chunk_index     integer not null default 0,
   chunk_text      text,
   embedding       vector(1536),
-  doc_title       text,       -- denormalized from content_items for faster retrieval
-  doc_description text,       -- denormalized from content_items for faster retrieval
+  doc_title       text,        -- denormalized from content_items (added in v5)
+  doc_description text,        -- denormalized from content_items (added in v5)
   created_at      timestamptz default now()
 );
 
--- Backfill columns for databases created before this migration
-alter table public.content_embeddings
-  add column if not exists chunk_index integer not null default 0;
-alter table public.content_embeddings
-  add column if not exists chunk_text text;
-
--- IVFFlat index for fast cosine similarity search
--- Lists value tuned for small-to-medium dataset; increase for >100k rows
+-- IVFFlat index for cosine similarity search
 create index if not exists content_embeddings_vector_idx
   on public.content_embeddings
   using ivfflat (embedding vector_cosine_ops)
   with (lists = 100);
 
+
+-- ============================================================
+-- VECTOR SEARCH RPC (added in v3)
+-- ============================================================
+
+create or replace function public.match_content(
+  query_embedding vector(1536),
+  match_count     int  default 5,
+  filter_user_id  uuid default null
+)
+returns table (
+  content_id   uuid,
+  chunk_index  int,
+  chunk_text   text,
+  similarity   float,
+  title        text,
+  content_type text,
+  file_url     text
+)
+language sql stable
+as $$
+  select
+    ce.content_id,
+    ce.chunk_index,
+    ce.chunk_text,
+    1 - (ce.embedding <=> query_embedding) as similarity,
+    ci.title,
+    ci.content_type::text,
+    ci.file_url
+  from public.content_embeddings ce
+  join public.content_items ci on ci.id = ce.content_id
+  where filter_user_id is null
+     or ci.uploader_id = filter_user_id
+  order by ce.embedding <=> query_embedding
+  limit match_count;
+$$;
+
+
 -- ============================================================
 -- RATINGS
--- One rating per user per content item (enforced by unique constraint)
 -- ============================================================
 
 create table if not exists public.ratings (
@@ -164,6 +198,7 @@ create table if not exists public.ratings (
   created_at  timestamptz default now(),
   unique (content_id, user_id)
 );
+
 
 -- ============================================================
 -- COMMENTS
@@ -185,6 +220,7 @@ create trigger comments_updated_at
   before update on public.comments
   for each row execute procedure public.set_updated_at();
 
+
 -- ============================================================
 -- SHARE LINKS
 -- ============================================================
@@ -199,16 +235,26 @@ create table if not exists public.share_links (
   created_at    timestamptz default now()
 );
 
+
 -- ============================================================
 -- CHAT SESSIONS
--- One persistent session per user
+-- Unique constraint on user_id removed in v4 (multiple sessions per user).
+-- title and updated_at added in v4.
 -- ============================================================
 
 create table if not exists public.chat_sessions (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references public.users(id) on delete cascade unique,
-  created_at  timestamptz default now()
+  user_id     uuid references public.users(id) on delete cascade,
+  title       text,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
 );
+
+drop trigger if exists chat_sessions_updated_at on public.chat_sessions;
+create trigger chat_sessions_updated_at
+  before update on public.chat_sessions
+  for each row execute procedure public.set_updated_at();
+
 
 -- ============================================================
 -- CHAT MESSAGES
@@ -221,6 +267,7 @@ create table if not exists public.chat_messages (
   content     text not null,
   created_at  timestamptz default now()
 );
+
 
 -- ============================================================
 -- IDEAS
@@ -243,20 +290,23 @@ create trigger ideas_updated_at
   before update on public.ideas
   for each row execute procedure public.set_updated_at();
 
+
 -- ============================================================
 -- INDEXES
 -- ============================================================
 
-create index if not exists content_items_tags_idx     on public.content_items using gin(tags);
-create index if not exists content_items_uploader_idx on public.content_items(uploader_id);
-create index if not exists content_items_type_idx     on public.content_items(content_type);
-create index if not exists content_items_fts_idx      on public.content_items
+create index if not exists content_items_tags_idx          on public.content_items using gin(tags);
+create index if not exists content_items_uploader_idx      on public.content_items(uploader_id);
+create index if not exists content_items_type_idx          on public.content_items(content_type);
+create index if not exists content_items_fts_idx           on public.content_items
   using gin(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'')));
-create index if not exists ratings_content_idx        on public.ratings(content_id);
-create index if not exists comments_content_idx       on public.comments(content_id);
-create index if not exists comments_parent_idx        on public.comments(parent_id);
-create index if not exists chat_messages_session_idx  on public.chat_messages(session_id);
-create index if not exists share_links_token_idx      on public.share_links(token);
+create index if not exists ratings_content_idx             on public.ratings(content_id);
+create index if not exists comments_content_idx            on public.comments(content_id);
+create index if not exists comments_parent_idx             on public.comments(parent_id);
+create index if not exists chat_messages_session_idx       on public.chat_messages(session_id);
+create index if not exists chat_sessions_user_updated_idx  on public.chat_sessions(user_id, updated_at desc);
+create index if not exists share_links_token_idx           on public.share_links(token);
+
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -283,14 +333,15 @@ do $$ declare r record; begin
 end $$;
 
 -- users
-create policy "users_select_all"    on public.users for select using (true);
-create policy "users_insert_own"    on public.users for insert with check (auth.uid() = id);
-create policy "users_update_own"    on public.users for update using (auth.uid() = id);
+create policy "users_select_all" on public.users for select using (true);
+create policy "users_insert_own" on public.users for insert with check (auth.uid() = id);
+create policy "users_update_own" on public.users for update using (auth.uid() = id);
 
 -- content_items
 create policy "content_select_all"  on public.content_items for select using (true);
 create policy "content_insert_auth" on public.content_items for insert with check (auth.uid() = uploader_id);
 create policy "content_update_own"  on public.content_items for update using (auth.uid() = uploader_id);
+-- v6: any authenticated user can delete (internal tool, not restricting to uploader)
 create policy "content_delete_auth" on public.content_items for delete using (auth.uid() is not null);
 
 -- content_embeddings
@@ -333,11 +384,11 @@ create policy "ideas_insert_auth" on public.ideas for insert with check (auth.ui
 create policy "ideas_update_own"  on public.ideas for update using (auth.uid() = created_by);
 create policy "ideas_delete_own"  on public.ideas for delete using (auth.uid() = created_by);
 
+
 -- ============================================================
--- STORAGE POLICIES (storage.objects for bucket: content-files)
+-- STORAGE POLICIES (storage.objects, bucket: content-files)
 -- ============================================================
 
--- Authenticated users can upload
 do $$ begin
   create policy "content_files_insert"
     on storage.objects for insert
@@ -346,7 +397,6 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
--- Anyone can read (supports public URLs)
 do $$ begin
   create policy "content_files_select"
     on storage.objects for select
@@ -354,7 +404,6 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
--- Uploaders can delete their own files
 do $$ begin
   create policy "content_files_delete"
     on storage.objects for delete
@@ -362,3 +411,23 @@ do $$ begin
     using (bucket_id = 'content-files' and owner::uuid = auth.uid());
 exception when duplicate_object then null;
 end $$;
+
+
+-- ============================================================
+-- MIGRATION TRACKING
+-- Pre-populate so that npm run db:migrate knows all incremental
+-- files have already been applied via this full-schema install.
+-- ============================================================
+
+create table if not exists schema_migrations (
+  filename   text primary key,
+  applied_at timestamptz not null default now()
+);
+
+insert into schema_migrations (filename) values
+  ('migrate_v2.sql'),
+  ('migrate_v3.sql'),
+  ('migrate_v4.sql'),
+  ('migrate_v5.sql'),
+  ('migrate_v6.sql')
+on conflict (filename) do nothing;

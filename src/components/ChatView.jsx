@@ -1,19 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLDClient, useFlags } from 'launchdarkly-react-client-sdk';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
+import { parseAIConfig, callAI, aiConfigLabel, trackAIInvocation } from '../lib/launchdarkly';
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
 
-const SYSTEM_PROMPT = `You are Sharon, an AI assistant for an internal content repository used by a Solutions Engineering team.
-
-You have two modes:
-
-1. **CONTENT DISCOVERY**: When asked to find content, recommend the most relevant items from the context provided. Be specific — cite titles and explain why each is relevant. Use [1], [2] style references.
-
-2. **IDEATION / BRAINSTORM**: When asked to build or brainstorm, produce a clear structured outline with headings, bullet points, and sections.
+const CHATVIEW_SYSTEM_SUFFIX = `
 
 **Guidelines:**
 - Use markdown: **bold** for emphasis, ## for section headings, bullet lists for options, numbered lists for steps
@@ -124,6 +119,73 @@ export default function ChatView({ session, items, onOpenContent }) {
   // Ref to always hold the latest steps state — avoids stale closure when
   // finalising the thinking trace (prevents double-render in React Strict Mode).
   const stepsRef = useRef(null);
+
+  // AI Config — model, prompt, and params driven by LaunchDarkly
+  const ldClient = useLDClient();
+  const flags = useFlags();
+  const aiConfig = parseAIConfig(flags['hub-assistant']);
+
+  // Tool executors — implement the 5 LD AI Tools using component state/props
+  const toolExecutors = {
+    search_content_library: async ({ query, limit = 5 }) => {
+      try {
+        const embedding = await embedText(query);
+        const results = await runVectorSearch(embedding, Math.min(limit, 10));
+        const resolved = results.map(r => {
+          const item = items.find(i => i.id === r.content_id);
+          if (!item) return null;
+          return {
+            id: item.id, title: item.title, type: item.content_type,
+            description: item.description, tags: item.tags || [],
+            excerpt: r.chunk_text?.slice(0, 200) || '',
+            similarity: Math.round((r.similarity ?? 0) * 100),
+          };
+        }).filter(Boolean);
+        return JSON.stringify(resolved);
+      } catch (e) {
+        return JSON.stringify({ error: e.message });
+      }
+    },
+
+    save_idea_draft: async ({ title, summary, outline }) => {
+      try {
+        const draft = { isDraft: true, title, summary, outline };
+        const { error } = await supabase.from('ideas').insert({
+          created_by: session.user.id,
+          title, artifact: draft, published: false,
+        });
+        if (error) throw error;
+        return JSON.stringify({ success: true, message: `Idea "${title}" saved to the Ideas board.` });
+      } catch (e) {
+        return JSON.stringify({ success: false, error: e.message });
+      }
+    },
+
+    get_content_by_tag: async ({ tags }) => {
+      const matched = items
+        .filter(item => (item.tags || []).some(t => tags.includes(t)))
+        .slice(0, 10)
+        .map(item => ({ id: item.id, title: item.title, type: item.content_type, tags: item.tags || [] }));
+      return JSON.stringify(matched);
+    },
+
+    get_content_metadata: async ({ content_id }) => {
+      const item = items.find(i => i.id === content_id);
+      if (!item) return JSON.stringify({ error: 'Content item not found' });
+      return JSON.stringify({
+        id: item.id, title: item.title, type: item.content_type,
+        description: item.description, tags: item.tags || [],
+        uploader: item.uploader?.name || item.uploader?.email || 'Unknown',
+        created_at: item.created_at, view_count: item.view_count,
+        avg_rating: item.avg_rating,
+      });
+    },
+
+    track_content_engagement: async ({ content_id, interaction_type }) => {
+      ldClient?.track('content-engagement', { content_id, interaction_type, source: 'chat-view' });
+      return JSON.stringify({ success: true });
+    },
+  };
 
   /* Load session list on mount */
   useEffect(() => {
@@ -369,36 +431,41 @@ export default function ChatView({ session, items, onOpenContent }) {
         content: m.body,
       }));
 
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': CLAUDE_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          system: SYSTEM_PROMPT + contextBlock,
-          messages: [
-            ...history,
-            { role: 'user', content: text },
-          ],
-          max_tokens: 1100,
-        }),
+      // Track agent invocation for monitoring dashboard
+      ldClient?.track('chat-message-sent', {
+        model: aiConfig.model,
+        provider: aiConfig.provider,
+        mode: useDocuments ? (docScope === 'mine' ? 'find-mine' : 'find-team') : 'no-docs',
+        queryLength: text.length,
+        searchResultCount: deduped.length,
+        topSimilarity: deduped[0]?.similarity ?? 0,
       });
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`Claude ${res.status}: ${body.slice(0, 100)}`);
+      const systemWithContext = aiConfig.systemPrompt + CHATVIEW_SYSTEM_SUFFIX + contextBlock;
+      const aiStart = Date.now();
+      let reply, replyUsage;
+      try {
+        const out = await callAI(aiConfig, systemWithContext, history, text, toolExecutors);
+        reply = out.text;
+        replyUsage = out.usage;
+        trackAIInvocation(ldClient, 'hub-assistant', aiConfig, {
+          durationMs: Date.now() - aiStart,
+          success: true,
+          usage: replyUsage,
+        });
+      } catch (e) {
+        trackAIInvocation(ldClient, 'hub-assistant', aiConfig, {
+          durationMs: Date.now() - aiStart,
+          success: false,
+          errorMessage: e.message,
+        });
+        throw e;
       }
-      const data = await res.json();
-      const reply = data.content[0].text;
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
       patchStep('generate', { status: 'done', detail: `responded in ${elapsed}s` });
       await new Promise(r => setTimeout(r, 750));
 
-      // Read frozen steps from ref — never from stale closure.
       const frozenSteps = stepsRef.current ? stepsRef.current.map(s => ({ ...s })) : null;
       stepsRef.current = null;
       setActiveSteps(null);
@@ -428,10 +495,8 @@ export default function ChatView({ session, items, onOpenContent }) {
     }
   }
 
-  const hasSources = sources.length > 0;
-
   return (
-    <div className={`chat-view ${hasSources ? '' : 'no-sources'}`}>
+    <div className="chat-view">
       {/* ── Sessions sidebar ── */}
       <ChatHistorySidebar
         sessions={sessions}
@@ -484,7 +549,7 @@ export default function ChatView({ session, items, onOpenContent }) {
                   <Icons.Sparkle size={10} />
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Hub Assistant · Claude 3.5 Haiku
+                  Hub Assistant · {aiConfigLabel(aiConfig)}
                 </span>
               </div>
 
@@ -535,16 +600,6 @@ export default function ChatView({ session, items, onOpenContent }) {
           </div>
         </div>
       </div>
-
-      {/* ── Sources panel ── */}
-      {hasSources && (
-        <SourcesPanel
-          sources={sources} items={items}
-          onOpenContent={onOpenContent}
-          highlightId={highlightId}
-          onHover={setHighlightId}
-        />
-      )}
     </div>
   );
 }
@@ -730,6 +785,7 @@ function Message({ msg, items, onOpenContent, onHoverSource, highlightId }) {
 
 /* ── Inline source links ─────────────────────────────── */
 function SourceLinks({ sources, items, onOpenContent, onHoverSource, highlightId }) {
+  const [open, setOpen] = useState(false);
   const resolved = sources.map((s, i) => {
     const item = items.find(x => x.id === s.content_id);
     return item ? { ...s, item, idx: i + 1 } : null;
@@ -737,11 +793,21 @@ function SourceLinks({ sources, items, onOpenContent, onHoverSource, highlightId
   if (!resolved.length) return null;
 
   return (
-    <div className="cv-sources-list">
-      <div className="cv-sources-list-label">
-        <Icons.Search size={10} /> Sources used
-      </div>
-      {resolved.map(({ item, similarity, chunk_text, idx }) => {
+    <div className={`cv-sources-list ${open ? 'open' : 'collapsed'}`}>
+      <button
+        type="button"
+        className="cv-sources-list-label"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <Icons.Search size={10} />
+        <span>Sources used</span>
+        <span className="cv-sources-count">{resolved.length}</span>
+        <span className="cv-sources-chevron" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>
+          <Icons.ChevronDown size={11} />
+        </span>
+      </button>
+      {open && resolved.map(({ item, similarity, chunk_text, idx }) => {
         const score = Math.round((similarity ?? 0) * 100);
         const excerpt = chunk_text
           ? chunk_text.slice(0, 180).replace(/\s+/g, ' ').trim() + (chunk_text.length > 180 ? '…' : '')
@@ -768,50 +834,5 @@ function SourceLinks({ sources, items, onOpenContent, onHoverSource, highlightId
         );
       })}
     </div>
-  );
-}
-
-/* ── Sources panel ───────────────────────────────────── */
-function SourcesPanel({ sources, items, onOpenContent, highlightId, onHover }) {
-  return (
-    <aside className="sources-panel">
-      <div className="sources-panel-header">
-        <Icons.Search size={11} /> Retrieved sources
-        <span className="sources-panel-count">{sources.length}</span>
-      </div>
-      <div className="sources-panel-body">
-        {sources.map((s, i) => {
-          const item = items.find(x => x.id === s.content_id);
-          if (!item) return null;
-          const score = Math.round((s.similarity ?? 0) * 100);
-          const excerpt = s.chunk_text
-            ? s.chunk_text.slice(0, 220).replace(/\s+/g, ' ').trim() + (s.chunk_text.length > 220 ? '…' : '')
-            : item.description || '';
-          return (
-            <button
-              key={`${s.content_id}-${i}`}
-              className={`source-card ${highlightId === item.id ? 'highlight' : ''}`}
-              onClick={() => onOpenContent(item)}
-              onMouseEnter={() => onHover(item.id)}
-              onMouseLeave={() => onHover(null)}
-            >
-              <div className="source-card-head">
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className={`source-type-badge ${item.content_type}`}>{item.content_type}</span>
-                {score > 0 && <span className="source-score">{score}%</span>}
-              </div>
-              <div className="source-card-title">{item.title}</div>
-              <div className="source-card-uploader">
-                {(item.uploader?.name || item.uploader?.email || 'Unknown').split(' ')[0]}
-                {(item.tags || []).slice(0, 2).length > 0 && <> · {item.tags.slice(0, 2).join(' · ')}</>}
-              </div>
-              {excerpt && <div className="source-card-excerpt">{excerpt}</div>}
-            </button>
-          );
-        })}
-      </div>
-    </aside>
   );
 }
