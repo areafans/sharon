@@ -119,3 +119,43 @@ export function clampMaxTokens(n) {
   if (!Number.isFinite(num) || num <= 0) return 1024;
   return Math.min(num, MAX_TOKENS_CEILING);
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Reliability helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+const DEFAULT_FETCH_TIMEOUT_MS = 25_000;
+
+/**
+ * fetch() with a hard timeout. Use for every upstream API call so a hung
+ * dependency can't keep a Vercel function open until its platform limit.
+ * Throws an Error with a recognisable message on timeout.
+ */
+export async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Upstream request to ${new URL(url).host} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/**
+ * Reads `res.text()` and returns the first `max` characters. Use when an
+ * upstream returns non-200 and you want to surface its error body in logs
+ * without flooding them.
+ */
+export async function snippetFromResponse(res, max = 200) {
+  try {
+    const text = await res.text();
+    return text.slice(0, max);
+  } catch {
+    return '';
+  }
+}

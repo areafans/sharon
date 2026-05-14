@@ -129,7 +129,7 @@ export function parseAIConfig(flagVariation) {
 export const TOOL_DEFINITIONS_CLAUDE = [
   {
     name: 'search_content_library',
-    description: 'Semantically search the SE Content Hub library to find relevant content items. Use this to find content the user is looking for or to gather sources before answering.',
+    description: 'Semantically search the Sharon content library to find relevant content items. Use this to find content the user is looking for or to gather sources before answering.',
     input_schema: {
       type: 'object',
       properties: {
