@@ -1,10 +1,12 @@
-import { parseAIConfig, callAI, trackAIInvocation } from './launchdarkly';
+// Agent graph orchestration — browser-side coordinator that calls the
+// /api/agent endpoint (which is where the LaunchDarkly AI SDK actually runs).
+//
+// All AI Config evaluation, model invocation, tool execution, and metric
+// tracking happens server-side. This file just sequences the two calls
+// (orchestrator → specialist) and surfaces routing state to the UI.
 
-/**
- * Agent keys match their LD AI Config keys exactly.
- * LaunchDarkly is the control plane — model, prompt, and tools for each
- * agent are configured in the LD UI and served at runtime via useFlags().
- */
+import { supabase } from './supabase';
+
 export const AGENT_KEYS = {
   ORCHESTRATOR: 'hub-orchestrator',
   RETRIEVER:    'hub-retriever',
@@ -13,61 +15,37 @@ export const AGENT_KEYS = {
 };
 
 export const ROUTE_CONFIG = {
-  retrieval:     { label: 'Content Retriever', hint: 'Searching the library…', agent: AGENT_KEYS.RETRIEVER },
+  retrieval:     { label: 'Content Retriever', hint: 'Searching the library…',  agent: AGENT_KEYS.RETRIEVER },
   'demo-writer': { label: 'Demo Writer',        hint: 'Drafting your content…', agent: AGENT_KEYS.DEMO_WRITER },
   researcher:    { label: 'SE Researcher',      hint: 'Searching the web…',     agent: AGENT_KEYS.RESEARCHER },
 };
 
-/**
- * The LaunchDarkly JS Client SDK strips `_ldMeta` from served flag values, so
- * variationKey/version are not available at runtime in the browser. Until LD
- * ships a browser AI SDK, we hardcode the metadata required by the AI Config
- * monitoring dashboard. Each agent config has exactly one variation, so this
- * mapping is unambiguous; bump `version` here when you publish a new variation.
- */
-const AGENT_META = {
-  [AGENT_KEYS.ORCHESTRATOR]: { variationKey: 'haiku-router',     version: 1 },
-  [AGENT_KEYS.RETRIEVER]:    { variationKey: 'haiku-retriever',  version: 1 },
-  [AGENT_KEYS.DEMO_WRITER]:  { variationKey: 'sonnet-writer',    version: 1 },
-  [AGENT_KEYS.RESEARCHER]:   { variationKey: 'sonnet-researcher',version: 1 },
-};
-
-/**
- * Execute a single agent call with full LD AI Config tracking.
- * Emits the reserved $ld:ai:* events required to populate the AI Config
- * monitoring dashboard with invocation count, duration, tokens, success rate.
- */
-async function runAgent({ ldClient, configKey, aiConfig, systemPrompt, history, userMessage, toolExecutors }) {
-  // Inject the hardcoded variation metadata if the served flag value didn't
-  // include it (browser SDKs strip _ldMeta).
-  const aiConfigWithMeta = {
-    ...aiConfig,
-    meta: aiConfig.meta ?? AGENT_META[configKey] ?? null,
-  };
-
-  const start = Date.now();
-  try {
-    const { text, usage } = await callAI(aiConfigWithMeta, systemPrompt, history, userMessage, toolExecutors);
-    trackAIInvocation(ldClient, configKey, aiConfigWithMeta, {
-      durationMs: Date.now() - start,
-      success: true,
-      usage,
-    });
-    return text;
-  } catch (err) {
-    trackAIInvocation(ldClient, configKey, aiConfigWithMeta, {
-      durationMs: Date.now() - start,
-      success: false,
-      errorMessage: err.message,
-    });
-    throw err;
+async function callAgentApi({ agentKey, query, history = [], ldContext, userId }) {
+  // /api/agent requires a Supabase access token — see api/_lib/auth.js.
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data?.session?.access_token;
+  if (!accessToken) {
+    throw new Error('Not signed in — cannot call agent API');
   }
+
+  const res = await fetch('/api/agent', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ agentKey, query, history, ldContext, userId }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    throw new Error(body.error || `Agent ${agentKey} failed (${res.status})`);
+  }
+  return body;
 }
 
-/** Parse the orchestrator's JSON routing decision; default to retrieval on error. */
-function parseRoutingDecision(response) {
+function parseRoutingDecision(text) {
   try {
-    const cleaned = response.replace(/```(?:json)?\n?|\n?```/g, '').trim();
+    const cleaned = text.replace(/```(?:json)?\n?|\n?```/g, '').trim();
     const parsed = JSON.parse(cleaned);
     if (['retrieval', 'demo-writer', 'researcher'].includes(parsed.route)) {
       return { route: parsed.route, reason: parsed.reason || '' };
@@ -78,53 +56,49 @@ function parseRoutingDecision(response) {
 
 /**
  * Run the two-step agent graph:
- *   1. Orchestrator (hub-orchestrator) — classifies intent, returns route JSON
- *   2. Specialist (hub-retriever | hub-demo-writer | hub-researcher) — answers
+ *   1. hub-orchestrator → returns route JSON
+ *   2. specialist (hub-retriever | hub-demo-writer | hub-researcher) → answers
  *
- * Both agents emit LD AI Config tracking events via trackAIInvocation.
+ * Both calls hit /api/agent, where the LD server-side AI SDK records the
+ * metrics that populate the AI Config Monitoring tab.
  *
  * @param {object} params
- * @param {object}   params.ldClient       - useLDClient() result (required for tracking)
- * @param {string}   params.query          - Current user message
- * @param {Array}    params.history        - [{role, content}] conversation history
- * @param {object}   params.flags          - Full useFlags() map from LD React SDK
- * @param {object}   params.toolExecutors  - Map of tool name → async fn(args) → string
- * @param {Function} [params.onRoute]      - Called after orchestrator decides:
- *                                            ({ label, hint, reason, route }) => void
+ * @param {string}   params.query     Current user message
+ * @param {Array}    params.history   [{role, content}] conversation history
+ * @param {object}   params.ldContext LD evaluation context for both agents
+ * @param {string?}  params.userId    Supabase user id (for save_idea_draft tool)
+ * @param {Function} [params.onRoute] Called after orchestrator decides
  */
-export async function runAgentGraph({ ldClient, query, history, flags, toolExecutors, onRoute }) {
-  // ── Step 1: Orchestrator ────────────────────────────────────────────────────
-  const orchConfig = parseAIConfig(flags[AGENT_KEYS.ORCHESTRATOR]);
-  const orchResponse = await runAgent({
-    ldClient,
-    configKey: AGENT_KEYS.ORCHESTRATOR,
-    aiConfig: orchConfig,
-    systemPrompt: orchConfig.systemPrompt,
+export async function runAgentGraph({ query, history, ldContext, userId, onRoute }) {
+  // ── Step 1: Orchestrator ────────────────────────────────────────────────
+  const orchResult = await callAgentApi({
+    agentKey: AGENT_KEYS.ORCHESTRATOR,
+    query,
     history: [],
-    userMessage: query,
-    toolExecutors: null,
+    ldContext,
+    userId,
   });
-  const decision = parseRoutingDecision(orchResponse);
+  const decision = parseRoutingDecision(orchResult.text);
 
   const routeInfo = ROUTE_CONFIG[decision.route] ?? ROUTE_CONFIG.retrieval;
   onRoute?.({ ...routeInfo, route: decision.route, reason: decision.reason });
 
-  // ── Step 2: Specialist ──────────────────────────────────────────────────────
-  const specialistConfig = parseAIConfig(flags[routeInfo.agent]);
-  const replyText = await runAgent({
-    ldClient,
-    configKey: routeInfo.agent,
-    aiConfig: specialistConfig,
-    systemPrompt: specialistConfig.systemPrompt,
+  // ── Step 2: Specialist ──────────────────────────────────────────────────
+  const specialistResult = await callAgentApi({
+    agentKey: routeInfo.agent,
+    query,
     history,
-    userMessage: query,
-    toolExecutors,
+    ldContext,
+    userId,
   });
 
   return {
-    replyText,
+    replyText: specialistResult.text,
     route: decision.route,
     agentLabel: routeInfo.label,
     reason: decision.reason,
+    searchResults: specialistResult.searchResults ?? [],
+    savedDraft: specialistResult.savedDraft ?? null,
+    meta: specialistResult.meta,
   };
 }

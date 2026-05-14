@@ -3,35 +3,8 @@ import { useLDClient, useFlags } from 'launchdarkly-react-client-sdk';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
 import { TYPE_META } from './Poster';
-import { parseAIConfig, aiConfigLabel } from '../lib/launchdarkly';
-import { runAgentGraph, AGENT_KEYS, ROUTE_CONFIG } from '../lib/agentGraph';
-
-const TAVILY_KEY = import.meta.env.VITE_TAVILY_API_KEY;
-
-const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-
-async function embedText(text) {
-  const res = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
-    body: JSON.stringify({ model: 'text-embedding-3-small', input: text }),
-  });
-  if (!res.ok) throw new Error('Embedding failed');
-  const data = await res.json();
-  return data.data[0].embedding;
-}
-
-async function searchContent(embedding, matchCount = 5) {
-  try {
-    const { data } = await supabase.rpc('match_content', {
-      query_embedding: embedding,
-      match_count: matchCount,
-    });
-    return data || [];
-  } catch {
-    return [];
-  }
-}
+import { parseAIConfig, buildLDContext } from '../lib/launchdarkly';
+import { runAgentGraph } from '../lib/agentGraph';
 
 function parseReply(text, searchResults, items) {
   let body = text;
@@ -130,110 +103,12 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
   const bodyRef = useRef(null);
   const taRef = useRef(null);
 
-  // All agent AI Configs are read from LaunchDarkly at runtime.
-  // Swapping a model or system prompt in the LD UI takes effect immediately —
-  // no code deploy needed. This makes the app a live demo of LD AI Configs.
+  // hub-assistant is no longer used for AI calls — kept only so the footer can
+  // display "Claude Haiku 4.5" or whatever variation is currently served. All
+  // real AI Config evaluation now happens in /api/agent via the LD server SDK.
   const ldClient = useLDClient();
   const flags = useFlags();
-  const aiConfig = parseAIConfig(flags['hub-assistant']); // kept for footer label
-
-  // Tool executors — closures with access to component state/props.
-  // These implement the 5 LD AI Tools registered in the sharon project.
-  const toolExecutors = {
-    search_content_library: async ({ query, limit = 5 }) => {
-      try {
-        const embedding = await embedText(query);
-        const results = await searchContent(embedding, Math.min(limit, 10));
-        const resolved = results.map(r => {
-          const item = items.find(i => i.id === r.content_id);
-          if (!item) return null;
-          return {
-            id: item.id, title: item.title, type: item.content_type,
-            description: item.description, tags: item.tags || [],
-            similarity: Math.round((r.similarity ?? 0) * 100),
-          };
-        }).filter(Boolean);
-        return JSON.stringify(resolved);
-      } catch (e) {
-        return JSON.stringify({ error: e.message });
-      }
-    },
-
-    save_idea_draft: async ({ title, summary, outline }) => {
-      try {
-        const draft = { isDraft: true, title, summary, outline };
-        const { error } = await supabase.from('ideas').insert({
-          created_by: session.user.id,
-          title, artifact: draft, published: false,
-        });
-        if (error) throw error;
-        if (onSaveIdea) onSaveIdea(draft);
-        return JSON.stringify({ success: true, message: `Idea "${title}" saved to the Ideas board.` });
-      } catch (e) {
-        return JSON.stringify({ success: false, error: e.message });
-      }
-    },
-
-    get_content_by_tag: async ({ tags }) => {
-      const matched = items
-        .filter(item => (item.tags || []).some(t => tags.includes(t)))
-        .slice(0, 10)
-        .map(item => ({ id: item.id, title: item.title, type: item.content_type, tags: item.tags || [] }));
-      return JSON.stringify(matched);
-    },
-
-    get_content_metadata: async ({ content_id }) => {
-      const item = items.find(i => i.id === content_id);
-      if (!item) return JSON.stringify({ error: 'Content item not found' });
-      return JSON.stringify({
-        id: item.id, title: item.title, type: item.content_type,
-        description: item.description, tags: item.tags || [],
-        uploader: item.uploader?.name || item.uploader?.email || 'Unknown',
-        created_at: item.created_at, view_count: item.view_count,
-        avg_rating: item.avg_rating,
-      });
-    },
-
-    track_content_engagement: async ({ content_id, interaction_type }) => {
-      ldClient?.track('content-engagement', { content_id, interaction_type, source: 'chat-panel' });
-      return JSON.stringify({ success: true });
-    },
-
-    web_search: async ({ query, num_results = 5 }) => {
-      if (!TAVILY_KEY) {
-        return JSON.stringify({
-          error: 'Web search is not configured.',
-          setup: 'Add VITE_TAVILY_API_KEY to .env.local — free tier at tavily.com (1,000 queries/month).',
-        });
-      }
-      try {
-        const res = await fetch('https://api.tavily.com/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            api_key: TAVILY_KEY,
-            query,
-            max_results: Math.min(num_results, 10),
-            include_answer: true,
-            search_depth: 'advanced',
-          }),
-        });
-        if (!res.ok) throw new Error(`Tavily error: ${res.status}`);
-        const data = await res.json();
-        return JSON.stringify({
-          answer: data.answer || null,
-          results: (data.results || []).slice(0, num_results).map(r => ({
-            title: r.title,
-            url: r.url,
-            snippet: r.content?.slice(0, 400),
-            published_date: r.published_date,
-          })),
-        });
-      } catch (e) {
-        return JSON.stringify({ error: e.message });
-      }
-    },
-  };
+  const aiConfig = parseAIConfig(flags['hub-assistant']);
 
   useEffect(() => {
     if (session) loadHistory();
@@ -334,36 +209,39 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
       ldClient?.track('chat-message-sent', { mode, queryLength: text.length });
 
       // Run the agent graph — orchestrator routes, then specialist executes.
-      // All agent configs (model, prompt, tools) are served live from LD AI Configs.
-      const { replyText, route, agentLabel } = await runAgentGraph({
-        ldClient,
+      // /api/agent uses the LD server-side AI SDK so every call records metrics
+      // on the AI Config Monitoring tab automatically.
+      const ldContext = buildLDContext(session);
+      const { replyText, route, agentLabel, searchResults: agentSearchResults, savedDraft } = await runAgentGraph({
         query: text,
         history: historyMsgs,
-        flags,
-        toolExecutors,
+        ldContext,
+        userId: session?.user?.id,
         onRoute: (info) => setRoutingStatus({ label: info.label, hint: info.hint }),
       });
 
       ldClient?.track('chat-response-latency', null, Date.now() - sendStartMs);
 
-      // For the retrieval agent, still run vector search to populate inline cards
-      let searchResults = [];
-      if (route === 'retrieval' && OPENAI_KEY) {
-        try {
-          const embedding = await embedText(text);
-          searchResults = await searchContent(embedding);
-        } catch { /* non-fatal */ }
-      }
+      // The retrieval agent runs search server-side; its result comes back
+      // alongside the text so we can render inline cards for the top matches.
+      const searchResults = (agentSearchResults || []).map(r => ({
+        content_id: r.id,
+        similarity: (r.similarity || 0) / 100,
+      }));
 
       const { body, draft, cards } = parseReply(replyText, searchResults, items);
+
+      // Surface the saved draft to the parent in case the agent saved one.
+      if (savedDraft && onSaveIdea) onSaveIdea(savedDraft);
 
       const reply = {
         role: 'ai',
         body,
         time: 'Just now',
         agentLabel,
+        route,
         cards: cards.length > 0 ? cards : undefined,
-        draft,
+        draft: draft ?? savedDraft,
       };
       setMessages(m => [...m, reply]);
       await saveMessage('assistant', replyText, sessionId);

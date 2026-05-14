@@ -1,9 +1,23 @@
+import { supabase } from './supabase';
+
 export const LD_CLIENT_ID = import.meta.env.VITE_LAUNCHDARKLY_CLIENT_ID;
 
 // Anthropic does not allow direct browser calls (CORS). All Claude requests route
 // through /api/claude — proxied by Vite in dev, handled by a Vercel function in prod.
 const CLAUDE_PROXY = '/api/claude';
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+
+// /api/claude is gated by the Supabase JWT (see api/_lib/auth.js), so every
+// request must include the current session's access token. Returns null when
+// no session — the proxy will then 401 and the caller can surface that.
+async function getAccessToken() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Build a LaunchDarkly user context from a Supabase session.
@@ -25,8 +39,9 @@ export function buildLDContext(session) {
 }
 
 /**
- * Default AI config — used when LaunchDarkly is unreachable or
- * the hub-assistant AI Config has no active variation.
+ * Default AI config — used when LaunchDarkly is unreachable or the served
+ * AI Config has no active variation. The prompt must reflect the Sharon brand,
+ * since this is exactly the fallback users see when LD is degraded.
  */
 export const DEFAULT_AI_CONFIG = {
   model: 'claude-haiku-4-5-20251001',
@@ -35,16 +50,17 @@ export const DEFAULT_AI_CONFIG = {
   temperature: 0.7,
   tools: null,
   meta: null,
-  systemPrompt: `You are the Hub Assistant for SE Content Hub — an internal content repository for a Solutions Engineering team.
+  systemPrompt: `You are Sharon — the content assistant for a Solutions Engineering team.
 
-You operate in two modes based on the message:
+You operate in two modes based on what the user is asking for:
 
-1. CONTENT DISCOVERY: When someone asks to find, search, or wants to know what exists, search and recommend relevant items from the library context provided.
+1. CONTENT DISCOVERY: When someone wants to find, search, or know what already exists, search the library context provided and recommend relevant items by title with a one-line reason.
 
-2. IDEATION / BRAINSTORM: When someone wants to build, create, draft, or brainstorm something new, help them develop a structured idea. Ask clarifying questions first (audience, format, goals), then produce a structured JSON artifact with this shape:
+2. IDEATION / BRAINSTORM: When someone wants to build, create, draft, or brainstorm something new, help them shape the idea. Ask clarifying questions first (audience, format, goals), then produce a structured JSON artifact with this shape:
    {"isDraft": true, "title": "...", "summary": "...", "outline": ["section 1", "section 2", ...]}
+   Include the JSON inline in your response wrapped in <draft>...</draft> tags.
 
-Always be specific, concise, and actionable. Reference content by title when recommending. If generating a draft artifact, include the JSON inline in your response wrapped in <draft>...</draft> tags.`,
+Always be specific, concise, and actionable. Reference content by title when recommending.`,
 };
 
 /**
@@ -291,11 +307,13 @@ export async function callAI(aiConfig, systemPrompt, history, userMessage, toolE
     };
     if (hasTools) body.tools = filteredClaude;
 
+    const accessToken = await getAccessToken();
     const res = await fetch(CLAUDE_PROXY, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: JSON.stringify(body),
     });

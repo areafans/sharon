@@ -18,4 +18,13 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // Node-side code (Vercel functions, build scripts, vite config). Without
+  // this scope, references to `process` and `Buffer` would be flagged as
+  // undefined under the browser-globals lint config above.
+  {
+    files: ['api/**/*.{js,jsx}', 'scripts/**/*.{js,jsx}', 'vite.config.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ])
