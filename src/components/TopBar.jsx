@@ -1,6 +1,13 @@
 import Icons from './Icons';
 
-export default function TopBar({ search, onSearch, onUpload, theme, onTheme }) {
+const NEW_BUTTON_LABELS = {
+  library: 'New',
+  ideas:   'New idea',
+};
+
+export default function TopBar({ view, search, onSearch, onNew, theme, onTheme }) {
+  const newLabel = NEW_BUTTON_LABELS[view];
+
   return (
     <div className="topbar">
       <div className="search-input">
@@ -31,9 +38,11 @@ export default function TopBar({ search, onSearch, onUpload, theme, onTheme }) {
           <Icons.Moon size={14} />
         </button>
       </div>
-      <button className="btn btn-secondary btn-sm" onClick={onUpload}>
-        <Icons.Plus size={14} /> New
-      </button>
+      {newLabel && (
+        <button className="btn btn-secondary btn-sm" onClick={onNew}>
+          <Icons.Plus size={14} /> {newLabel}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,10 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
 import Avatar from './Avatar';
 
+const TAGS_COLLAPSED_KEY = 'sidebar.tags.collapsed';
+
 export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag, items, ideas, session }) {
   const user = session?.user;
+  const [tagsCollapsed, setTagsCollapsed] = useState(
+    () => localStorage.getItem(TAGS_COLLAPSED_KEY) === '1'
+  );
+
+  function toggleTagsCollapsed() {
+    setTagsCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(TAGS_COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
 
   const popularTags = useMemo(() => {
     const counts = {};
@@ -60,28 +73,44 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
         </button>
       </div>
 
-      <div className="nav-section">
-        <div className="nav-label">Tags</div>
-        <button
-          className={`tag-item ${activeTags.length === 0 ? 'active' : ''}`}
-          onClick={() => onToggleTag(null)}
-        >
-          <span className="tag-dot" />
-          All content
-          <span className="tag-count">{items.length}</span>
-        </button>
-        {popularTags.map(([tag, count]) => (
+      {view === 'library' && (
+        <div className="nav-section">
           <button
-            key={tag}
-            className={`tag-item ${activeTags.includes(tag) ? 'active' : ''}`}
-            onClick={() => onToggleTag(tag)}
+            type="button"
+            className="nav-label nav-label-toggle"
+            onClick={toggleTagsCollapsed}
+            aria-expanded={!tagsCollapsed}
           >
-            <span className="tag-dot" />
-            {tag}
-            <span className="tag-count">{count}</span>
+            <span>Tags</span>
+            {tagsCollapsed
+              ? <Icons.ChevronRight size={12} stroke="currentColor" />
+              : <Icons.ChevronDown size={12} stroke="currentColor" />}
           </button>
-        ))}
-      </div>
+          {!tagsCollapsed && (
+            <>
+              <button
+                className={`tag-item ${activeTags.length === 0 ? 'active' : ''}`}
+                onClick={() => onToggleTag(null)}
+              >
+                <span className="tag-dot" />
+                All content
+                <span className="tag-count">{items.length}</span>
+              </button>
+              {popularTags.map(([tag, count]) => (
+                <button
+                  key={tag}
+                  className={`tag-item ${activeTags.includes(tag) ? 'active' : ''}`}
+                  onClick={() => onToggleTag(tag)}
+                >
+                  <span className="tag-dot" />
+                  {tag}
+                  <span className="tag-count">{count}</span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="nav-section">
         <button
@@ -103,8 +132,9 @@ export default function Sidebar({ view, onNav, onUpload, activeTags, onToggleTag
           style={{ marginLeft: 'auto', display: 'grid', placeItems: 'center', padding: 4, borderRadius: 4 }}
           onClick={handleSignOut}
           title="Sign out"
+          aria-label="Sign out"
         >
-          <Icons.Settings size={14} stroke="var(--muted)" />
+          <Icons.LogOut size={14} stroke="var(--muted)" />
         </button>
       </div>
     </aside>
