@@ -218,9 +218,13 @@ export default function App() {
 
       <main className="main">
         <TopBar
+          view={view}
           search={search}
           onSearch={setSearch}
-          onUpload={() => setUploadOpen(true)}
+          onNew={() => {
+            if (view === 'library') setUploadOpen(true);
+            else if (view === 'ideas') setChatCollapsed(false);
+          }}
           theme={theme}
           onTheme={setTheme}
         />

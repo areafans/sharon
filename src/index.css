@@ -224,12 +224,26 @@ img.brand-mark {
 .sidebar .brand-mark {
   width: 96px;
   height: 96px;
-  border-radius: 22px;
+  border-radius: 50%;
+  background: #fff;
 }
 .sidebar .brand-name {
   font-size: 18px;
   text-align: center;
 }
+.nav-label-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: inherit;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.nav-label-toggle:hover { color: var(--ink); }
 .brand-name {
   font-weight: 600;
   font-size: 14px;
