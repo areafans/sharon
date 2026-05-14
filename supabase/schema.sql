@@ -291,7 +291,7 @@ create policy "users_update_own"    on public.users for update using (auth.uid()
 create policy "content_select_all"  on public.content_items for select using (true);
 create policy "content_insert_auth" on public.content_items for insert with check (auth.uid() = uploader_id);
 create policy "content_update_own"  on public.content_items for update using (auth.uid() = uploader_id);
-create policy "content_delete_own"  on public.content_items for delete using (auth.uid() = uploader_id);
+create policy "content_delete_auth" on public.content_items for delete using (auth.uid() is not null);
 
 -- content_embeddings
 create policy "embeddings_select_all"  on public.content_embeddings for select using (true);

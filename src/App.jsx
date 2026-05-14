@@ -148,10 +148,16 @@ export default function App() {
   }
 
   async function handleDeleteContent(id) {
+    // Optimistic update — remove immediately so the UI feels instant
+    setItems(prev => prev.filter(x => x.id !== id));
+    if (openItem?.id === id) setOpenItem(null);
+
     const { error } = await supabase.from('content_items').delete().eq('id', id);
-    if (!error) {
+    if (error) {
+      // Roll back the optimistic removal and surface the error
       fetchContent();
-      if (openItem?.id === id) setOpenItem(null);
+      pushToast(`Delete failed: ${error.message}`, 'error');
+    } else {
       pushToast('Item deleted from library', 'check');
     }
   }
