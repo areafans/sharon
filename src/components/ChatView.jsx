@@ -614,7 +614,7 @@ function ChatHistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, loa
 function Welcome({ onPrompt }) {
   return (
     <div className="chat-view-welcome">
-      <h1 className="chat-view-welcome-title">What are you <em>working on?</em></h1>
+      <h1 className="chat-view-welcome-title">What are you working on?</h1>
       <p className="chat-view-welcome-sub">
         Ask in plain English. I&apos;ll run a semantic search across all content in the hub — decks, demos, docs, code, and videos — and show you exactly what matched and why.
       </p>
