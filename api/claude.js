@@ -11,7 +11,12 @@
 // existing local checkouts rotate. Remove the fallback once everyone has
 // updated their .env.local.
 
-import { guardRequest, isAllowedClaudeModel, clampMaxTokens } from './_lib/auth.js';
+import {
+  guardRequest,
+  isAllowedClaudeModel,
+  clampMaxTokens,
+  fetchWithTimeout,
+} from './_lib/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -39,7 +44,7 @@ export default async function handler(req, res) {
   body.max_tokens = clampMaxTokens(body.max_tokens);
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+    const upstream = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

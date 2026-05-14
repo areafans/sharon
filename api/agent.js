@@ -22,7 +22,18 @@
 import { init } from '@launchdarkly/node-server-sdk';
 import { initAi } from '@launchdarkly/server-sdk-ai';
 import { createClient } from '@supabase/supabase-js';
-import { guardRequest, isAllowedClaudeModel, clampMaxTokens } from './_lib/auth.js';
+import {
+  guardRequest,
+  isAllowedClaudeModel,
+  clampMaxTokens,
+  fetchWithTimeout,
+  snippetFromResponse,
+} from './_lib/auth.js';
+
+// Hard ceiling on total tokens (input + output, summed across all tool-loop
+// iterations) for a single /api/agent invocation. Tunable via env var so ops
+// can dial it without a code change.
+const MAX_TOTAL_TOKENS = Number(process.env.AGENT_TOKEN_BUDGET) || 50_000;
 
 const SDK_KEY        = process.env.LAUNCHDARKLY_SDK_KEY;
 const SUPABASE_URL   = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -67,7 +78,7 @@ async function ensureInitialised() {
 // ────────────────────────────────────────────────────────────────────────────
 const TOOL_DEFINITIONS = {
   search_content_library: {
-    description: 'Semantically search the SE Content Hub library to find relevant content items. Use this to find content the user is looking for or to gather sources before answering.',
+    description: 'Semantically search the Sharon content library to find relevant content items. Use this to find content the user is looking for or to gather sources before answering.',
     input_schema: {
       type: 'object',
       properties: {
@@ -140,12 +151,14 @@ const TOOL_DEFINITIONS = {
 // ────────────────────────────────────────────────────────────────────────────
 async function embedText(text) {
   if (!OPENAI_KEY) throw new Error('OPENAI_API_KEY not configured');
-  const res = await fetch('https://api.openai.com/v1/embeddings', {
+  const res = await fetchWithTimeout('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
     body: JSON.stringify({ model: 'text-embedding-3-small', input: text }),
   });
-  if (!res.ok) throw new Error(`Embedding failed: ${res.status}`);
+  if (!res.ok) {
+    throw new Error(`OpenAI embeddings ${res.status}: ${await snippetFromResponse(res)}`);
+  }
   const data = await res.json();
   return data.data[0].embedding;
 }
@@ -260,7 +273,7 @@ const TOOL_IMPLS = {
       });
     }
     try {
-      const res = await fetch('https://api.tavily.com/search', {
+      const res = await fetchWithTimeout('https://api.tavily.com/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +284,7 @@ const TOOL_IMPLS = {
           search_depth: 'advanced',
         }),
       });
-      if (!res.ok) throw new Error(`Tavily ${res.status}`);
+      if (!res.ok) throw new Error(`Tavily ${res.status}: ${await snippetFromResponse(res)}`);
       const data = await res.json();
       return JSON.stringify({
         answer: data.answer || null,
@@ -313,7 +326,7 @@ async function runClaudeWithTools({ model, system, history, userMessage, allowed
     };
     if (tools.length > 0) body.tools = tools;
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -324,8 +337,7 @@ async function runClaudeWithTools({ model, system, history, userMessage, allowed
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Claude API ${res.status}: ${errText.slice(0, 500)}`);
+      throw new Error(`Claude API ${res.status}: ${await snippetFromResponse(res, 500)}`);
     }
 
     const data = await res.json();
@@ -333,6 +345,15 @@ async function runClaudeWithTools({ model, system, history, userMessage, allowed
       usage.input  += data.usage.input_tokens  ?? 0;
       usage.output += data.usage.output_tokens ?? 0;
       usage.total  += (data.usage.input_tokens ?? 0) + (data.usage.output_tokens ?? 0);
+    }
+
+    // Cost ceiling — abort if cumulative token use for this single invocation
+    // exceeds the per-message budget. Prevents a runaway tool loop from running
+    // up an unexpected Anthropic bill.
+    if (usage.total > MAX_TOTAL_TOKENS) {
+      throw new Error(
+        `Token budget exceeded: ${usage.total} > ${MAX_TOTAL_TOKENS} tokens in one invocation`
+      );
     }
 
     if (data.stop_reason === 'tool_use') {

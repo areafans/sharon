@@ -1,4 +1,4 @@
-# Contributing to SE Content Hub
+# Contributing to Sharon
 
 This document covers the conventions both contributors should follow so merges stay clean and history stays readable.
 
