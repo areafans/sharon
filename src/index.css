@@ -209,6 +209,10 @@ a { color: inherit; text-decoration: none; }
   font-size: 13px;
   letter-spacing: -0.5px;
 }
+img.brand-mark {
+  background: #f5efe6;
+  object-fit: cover;
+}
 .brand-name {
   font-weight: 600;
   font-size: 14px;

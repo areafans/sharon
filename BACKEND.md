@@ -1,4 +1,4 @@
-# SE Content Hub — Backend & Architecture Overview
+# Sharon — Backend & Architecture Overview
 
 > **For the front-end engineer joining this project.** This document covers everything built on the back end: the database schema, AI pipeline, storage setup, auth model, and what still needs wiring on the front end.
 
@@ -6,7 +6,7 @@
 
 ## What This Project Is
 
-**SE Content Hub** is an internal content management platform for Sales Engineers. SEs can upload sales assets (decks, videos, demos, docs, code snippets), browse and search the full library, leave ratings and comments, and chat with an AI assistant that has semantic knowledge of all uploaded content.
+**Sharon** is an internal content management platform for Sales Engineers. SEs can upload sales assets (decks, videos, demos, docs, code snippets), browse and search the full library, leave ratings and comments, and chat with an AI assistant that has semantic knowledge of all uploaded content.
 
 ---
 

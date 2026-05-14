@@ -1,4 +1,4 @@
-# SE Content Hub
+# Sharon
 
 An internal content management and AI-assisted search platform for Solutions Engineering teams. Upload decks, demos, docs, code, and videos — then use the built-in AI chat to find and brainstorm content in plain English.
 
@@ -28,8 +28,8 @@ An internal content management and AI-assisted search platform for Solutions Eng
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/Connor-Tluck/SE_Content_Share_and_Moonshots.git
-cd SE_Content_Share_and_Moonshots
+git clone https://github.com/areafans/sharon.git
+cd sharon
 
 # 2. Install dependencies
 npm install
@@ -134,7 +134,7 @@ npm run db:seed:content
 ## Project Structure
 
 ```
-se-content-hub/
+sharon/
 ├── public/                  # Static assets
 ├── scripts/                 # Node.js setup / seed scripts
 │   ├── run_migration.js

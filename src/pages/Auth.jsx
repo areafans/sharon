@@ -20,15 +20,15 @@ export default function Auth() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-brand">
-          <div className="brand-mark">SE</div>
+          <img className="brand-mark" src="/sharon-logo.png" alt="Sharon" />
           <div className="brand-name">
-            Content Hub
-            <small>Solutions Engineering</small>
+            Sharon
+            <small>Content Assistant</small>
           </div>
         </div>
 
         <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to access the SE Content Hub.</p>
+        <p className="auth-subtitle">Sign in to chat with Sharon.</p>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="field">

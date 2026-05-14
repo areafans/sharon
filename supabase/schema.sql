@@ -1,5 +1,5 @@
 -- ============================================================
--- SE Content Hub — Full Database Schema
+-- Sharon — Full Database Schema
 -- Run this against your Supabase project via the SQL Editor
 -- or via scripts/run_migration.js
 -- ============================================================
