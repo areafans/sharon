@@ -1,0 +1,26 @@
+{
+  "slug": "doc_06_contexts",
+  "content_type": "doc",
+  "title": "Contexts and segments",
+  "description": "How LaunchDarkly contexts replace users: multi-context architecture, context kinds, attributes, and upgrading from the user model.",
+  "source_url": "https://docs.launchdarkly.com/home/contexts",
+  "tags": [
+    "docs",
+    "contexts",
+    "targeting",
+    "multi-context",
+    "migration"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T16:02:12.567104+00:00",
+  "scrape_detail": {
+    "scraped_title": "Contexts and segments",
+    "scraped_description": "How LaunchDarkly contexts replace users: multi-context architecture, context kinds, attributes, and upgrading from the user model.",
+    "raw_url": "https://raw.githubusercontent.com/launchdarkly/LaunchDarkly-Docs/main/src/content/topics/home/contexts-and-segments/index.mdx",
+    "local_mdx": "scraped_content/docs/doc_06_contexts/index.mdx",
+    "local_text": "scraped_content/docs/doc_06_contexts/content.txt",
+    "char_count": 6965
+  },
+  "file_url": "https://docs.launchdarkly.com/home/contexts",
+  "is_external_url": true
+}

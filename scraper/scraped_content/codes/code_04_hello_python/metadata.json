@@ -1,0 +1,36 @@
+{
+  "slug": "code_04_hello_python",
+  "content_type": "code",
+  "title": "hello-python",
+  "description": "Hello LaunchDarkly for Python",
+  "source_url": "https://github.com/launchdarkly/hello-python",
+  "tags": [
+    "code",
+    "python",
+    "server-side",
+    "sample",
+    "sdk"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "hello-python",
+    "scraped_description": "Hello LaunchDarkly for Python",
+    "stars": 7,
+    "forks": 23,
+    "language": "Python",
+    "default_branch": "main",
+    "local_readme": "scraped_content/codes/code_04_hello_python/README.md",
+    "file_tree": [
+      ".github",
+      ".gitignore",
+      "CODEOWNERS",
+      "LICENSE.txt",
+      "README.md",
+      "main.py",
+      "pyproject.toml"
+    ]
+  },
+  "file_url": "https://github.com/launchdarkly/hello-python",
+  "is_external_url": true
+}

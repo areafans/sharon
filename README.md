@@ -71,30 +71,37 @@ cp .env.template .env.local
 
 ## Database Setup
 
-The schema and migrations live in `supabase/`.
+The schema lives in `supabase/`.
 
-### Fresh setup
+| File | Purpose |
+|---|---|
+| `supabase/schema_full.sql` | **Complete, current schema** — use this for all new setups |
+| `supabase/schema.sql` | Original base schema (historical reference only) |
+| `supabase/migrate_v2.sql` … `migrate_v6.sql` | Incremental migrations (historical reference only) |
 
-If you are setting up a brand-new Supabase project, run the full schema first:
+### Fresh setup (brand-new Supabase project)
 
 1. Open your Supabase project → SQL Editor
-2. Paste and run the contents of `supabase/schema.sql`
+2. Paste and run the full contents of **`supabase/schema_full.sql`**
+3. Run `npm run storage:setup` to create the file upload bucket
+4. You're done — **do not** run `npm run db:migrate` after this; the migration tracking table is pre-populated automatically
 
-Then run the Node migration runner to apply any incremental migrations:
+### Applying new migrations (existing project)
 
-```bash
-npm run db:migrate
-```
-
-### Incremental migrations (existing project)
-
-If you already have the base schema applied, just run:
+When a new `supabase/migrate_vN.sql` file is added, run:
 
 ```bash
 npm run db:migrate
 ```
 
-This applies `supabase/migrate_v2.sql` → `migrate_v3.sql` → `migrate_v4.sql` in order (already-applied migrations are skipped).
+The script discovers every `supabase/migrate_v*.sql` file, sorts them numerically, and applies only the ones not yet recorded in the `schema_migrations` table. Re-running is always safe — already-applied files are skipped.
+
+### Adding a new migration
+
+1. Create `supabase/migrate_vN.sql` (next version number) with your changes
+2. Apply it locally: `npm run db:migrate`
+3. Update `supabase/schema_full.sql` to bake in the changes so new setups stay current
+4. Commit both files together in the same PR
 
 ### Storage bucket
 
@@ -124,7 +131,7 @@ npm run db:seed:content
 | `npm run build` | Build for production into `dist/` |
 | `npm run preview` | Preview the production build locally |
 | `npm run lint` | Run ESLint |
-| `npm run db:migrate` | Apply incremental SQL migrations via `scripts/run_migration.js` |
+| `npm run db:migrate` | Apply pending `supabase/migrate_v*.sql` files in order (skips already-applied) |
 | `npm run db:seed` | Seed user accounts via `scripts/seed_users.js` |
 | `npm run db:seed:content` | Seed sample content items via `scripts/seed_content.js` |
 | `npm run storage:setup` | Create the Supabase Storage bucket via `scripts/setup_storage.js` |

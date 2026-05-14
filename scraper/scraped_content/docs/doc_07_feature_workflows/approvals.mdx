@@ -1,0 +1,58 @@
+---
+path: /home/feature-workflows/approvals
+title: Approvals
+description: This topic introduces LaunchDarkly's approvals feature. It explains what approvals are and how to configure them.
+published: true
+tags: ['approval', 'feature workflows', 'enterprise', 'pro']
+---
+
+<Callout intent="primary">
+<CalloutTitle>Approvals is a Pro and Enterprise feature</CalloutTitle>
+<CalloutDescription>
+
+Approvals is available to customers on a Pro or Enterprise plan. To learn more, [read about our pricing](https://launchdarkly.com/pricing/). To upgrade your plan, [contact Sales](https://launchdarkly.com/contact-sales/).
+
+Requiring approvals by environment is available only to customers on an Enterprise plan. To learn more, read [Configuring approvals for an environment](/home/feature-workflows/environment-approvals).
+
+</CalloutDescription>
+</Callout>
+
+## Overview
+
+This topic introduces LaunchDarkly's approvals feature. It explains what approvals are and how to configure them.
+
+## Understanding approvals
+
+When an account member plans a flag change, they have the option to request approval for that change from a member or team in their LaunchDarkly project. Approvals let more people have input on planned changes to a flag. These review-style approvals mimic common code review workflows, such as pull request (PR) reviews in GitHub.
+
+Anyone with a Writer, Admin, Owner, or custom role with `reviewApprovalRequest` permission can approve a flag change, regardless of whether or not their review has been requested. Account members and team members who the requester chooses receive an email notifying them that their review has been requested, and, if applicable, a notification in the LaunchDarkly Slack app.
+
+## Working with approvals
+
+You can request approval on changes to a flag's targeting or variations any time after you create a flag. To learn more, read [Requesting approvals](/home/feature-workflows/request-approvals). Enterprise customers can require approval requests for specific environments. To learn more, read [Configuring approvals for an environment](/home/feature-workflows/environment-approvals).
+
+You can view approval requests and approve or decline changes in LaunchDarkly from the Approval dashboard and in the flag's "Pending changes" panel. If someone requests your approval on a flag change, you will receive an email, an in-app inbox notification, and, if you use the LaunchDarkly Slack or Microsoft Teams app, a Slack or Teams notification. To learn more, read [Reviewing approval requests](/home/feature-workflows/review-approvals).
+
+## Configuring approval settings
+
+You can customize how approval requests are managed and enforced by making changes in the **Approval settings** menu.
+
+In this menu, you can customize who can approve a request and how many approvals are required before a requestor can apply a change. These settings can be useful when you want to use approval requests to track the changes you make to a flag, but don't want to delay applying those changes based on who has approved them.
+
+For example, you can prevent a proposed change from being applied if any reviewer declines an approval request for the Production environment. Or you may allow anyone, including the person making the approval request, to approve and apply a proposed change in the QA environment.
+
+Some flag changes, like toggling a flag on or off or changing targeting rules, affect the flag only at the environment level. Other flag changes, like editing flag variations, affect the flag at the project level. If you make a change to a flag variation that affects an environment with approvals required, then the change will trigger an approval request. To learn more, read [Understanding how required approvals work for flag variations](/home/feature-workflows/environment-approvals#understanding-how-required-approvals-work-for-flag-variations).
+
+Enterprise customers can customize an environment's approval settings in the **Environments** tab of a project under the **Account settings** page. To learn more, read [Configuring approvals for an environment](/home/feature-workflows/environment-approvals).
+
+The following actions do not trigger an approval request:
+
+* Changing the flag's name
+* Changing the flag's maintainer
+* Changing the flag's description
+* Changing the flag's tags
+* Creating a flag
+* Archiving a flag
+* Deleting a flag
+
+To prevent members from making these kinds of changes, you can configure and assign custom roles that deny these actions. To learn how, read [Custom roles](/home/members/custom-roles).

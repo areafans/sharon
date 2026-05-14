@@ -1,0 +1,26 @@
+{
+  "slug": "deck_01_effective_feature_management",
+  "content_type": "deck",
+  "title": "Effective Feature Management \u2014 O'Reilly Guide",
+  "description": "O'Reilly guide by John Kodumal: releasing and operating software in the age of continuous delivery. Covers flag patterns, lifecycle, and org design.",
+  "source_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/launchdarkly-oreilly-effective-feature-management.pdf?version=0",
+  "tags": [
+    "feature-flags",
+    "oreilly",
+    "continuous-delivery",
+    "patterns",
+    "guide"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Effective Feature Management \u2014 O'Reilly Guide",
+    "scraped_description": "O'Reilly guide by John Kodumal: releasing and operating software in the age of continuous delivery. Covers flag patterns, lifecycle, and org design.",
+    "local_pdf": "scraped_content/decks/deck_01_effective_feature_management/01-effective-feature-management-oreilly.pdf",
+    "file_size_bytes": 3382384,
+    "file_mime_type": "application/pdf",
+    "filename": "01-effective-feature-management-oreilly.pdf"
+  },
+  "file_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/launchdarkly-oreilly-effective-feature-management.pdf?version=0",
+  "is_external_url": true
+}

@@ -1,0 +1,88 @@
+Testing in Production to Stay Safe and Sensible - LaunchDarkly | LaunchDarkly
+Skip to:
+Blog
+Developer Productivity
+Testing in production to stay safe and sensible
+Testing in production to stay safe and sensible
+“Testing in production” refers to the practice of running code on production servers, usin...
+Heidi Waterhouse
+LaunchDarkly
+“Testing in production” refers to the practice of running code on production servers, using real data from real users, without showing the new behavior to the majority of users. These tests are frequently run during the final stages before releasing the software to a broad audience.
+Everyone is testing in production, some organizations admit and plan for it.
+Testing in production is not a substitute for quality assurance (QA), or a shortcut to eliminating unit testing or integration testing. Instead, it is an extension of testing and QA control points into the most realistic environment possible—the real-world.
+Testing in production has two implementations. In the first, the test exists to prove or disprove a stated hypothesis—“If we make this change, customers will convert at least 10% more often”. The second is to make sure that the change doesn’t cause negative changes for the customers or environment—“If we make this change, checkout won’t be affected”.
+Although we use the phrase “test in production” for both implementations, it’s useful to understand what your organization is trying to achieve.
+Does production testing replace other testing?
+No, testing in production is not a replacement for other types of testing and is not a way to eliminate your QA team. Your staging environment will not 100% match your production environment. While there are many types of tests that you should run in test environments prior to deploying code, to get accurate data you need to test in production.
+Your test suite should include the following types of tests in a pre-production environment before releasing new features:
+Unit tests
+to check the smallest unit of code that can be logically isolated.
+Integration tests
+to test software dependencies and the combination of various software modules.
+Performance testing
+which includes load tests and stress tests to identify how a system or software behaves when there are spikes in production traffic.
+Regression tests
+to confirm previous functionality continues to operate as expected.
+Functional tests
+to confirm the feature performs or functions as expected.
+Lint tests
+to check your source code for programmatic or stylistic errors.
+Usability tests
+to validate the ease of use with end-users.
+Ways to test in production
+Many types of tests can be classified as testing in production.
+Cindy Sridharan
+describes three phases of production—deploy, release, and post-release. Tests taking place in any of these phases can be considered testing in production.
+You may choose to rerun some tests that you conducted in staging or pre-production in your production environment such as integration tests or load tests during the deploy phase. You may not be able to fully run all integration tests in staging based on the configuration of your environment. Verify the results of integration tests in production. Some companies also choose to perform load testing in a production environment prior to deployment as the staging environment might not be of the same scale as production.
+During the release phase, you may opt to use a blue-green deployment or a
+canary release
+. Both of these can be considered testing in production.
+A
+blue-green deployment
+requires creating two identical instances of a production application. At any given time, one app is receiving user traffic, while the other app receives constant updates from a continuous integration (CI) server. At any time, the system not receiving traffic could become the production environment, hence the testing you are conducting on the inactive application is a production environment.
+A blue-green deployment
+Canary testing
+is the process of testing out new features or software versions with a percentage of real users in a production environment. With a canary test, only some users are seeing a new feature or version of the application, but they are seeing it in the production environment. Canary tests are a form of testing in production.
+Canary test using feature flags
+Testing in production that may occur during the post-release phase includes chaos engineering also known as game days. With chaos engineering, you are proactively looking for how systems and applications respond to stress and failures. Identifying how systems break under certain scenarios can test your hypothesis and prepare you to better address incidents when things break.
+Another form of testing in production that occurs during the release and post-release phases is
+experimentation
+. Experiments are sometimes referred to as a/b tests or a/b/n tests.
+Experiments
+allow you to gather data from end-users to fine-tune a feature before releasing to all users. With a/b testing, you can collect user data on conversions, performance, or other metrics to determine which version has the most impact on the business.
+The advantages of testing in production
+Accuracy
+The purpose of testing in a real environment is to ensure that your test results are accurate. You don’t want to go forward with a change in false confidence. The data in your
+test environment
+is often not an exact replica of production data. Different data can impact the accuracy of your tests. Testing your change against real users in the best way to be sure that you have covered edge cases. Target to exactly your demographic.
+It’s difficult to create synthetic users that have the full range of organic users. If you are trying to understand what effect a change will have on a subset of your users, the best way to find out is to deliver it exactly to them.
+Limit the blast radius
+Delivering a change and testing it with only a subset of users means that if something does go wrong, you have not affected the whole user base, only those that you are testing on, and feature flags mean that you can rollback any negative changes immediately, without needing to deploy anything different.
+When you gradually roll out new code you can prevent bad deployments from breaking production systems and negatively impacting the user experience.
+Collect feedback
+Collect feedback from monitoring and observability tooling on production systems to understand the success or failure rate of a new feature. Ensure application performance does not shift from an expected baseline in real-time.
+Eat your own dogfood
+Just like a chef tastes their sauces, as people making software, we need to frequently sample the experience of using our software before we share it with others. Being able to turn on a feature that you’re working on just for yourself gives you a lot of immediate feedback on whether the change is positive or negative.
+Savings
+Two savings areas related to testing in production were revealed in the
+Total Economic Impact of LaunchDarkly
+study. First, when you can segment your production infrastructure to do testing, you need less of a duplicate infrastructure for dedicated testing. “Software testing processes often require running user testing in a staging environment that closely replicates production, and this is very expensive to build and maintain.” Reducing the size and scope of the stage environment cuts down on overhead, increases deployment velocities, and lowers costs.
+Second, developers spend less time solving integration issues. Features have already been tested in production and integration and code errors can be resolved prior to launch. In addition to the cost-savings and boost to developer productivity, developers may also experience less stress and anxiety around resolving incidents after a build is deployed.
+Weirdness
+Users are weird in unique and unpredictable ways that are difficult to test for. What happens if someone names an object with an emoji, or runs a three-year-old unpatched browser? You don’t want to write test cases for these odd scenarios. You need to test these in production.
+What can go wrong with testing in production?
+People are wary of testing in production because even if you follow all the best practices and have safety mechanisms in place, things can go wrong. What can go wrong, even if you have followed best practices?
+Wider or narrower distribution than intended
+Unforeseen interactions or impacts on other production systems
+Runaway processes
+Pages and alerts to people on-call
+How do feature flags make production testing safer?
+Everything we put into production carries some danger of negative effects for our users, but planning for that and mitigating it makes it much safer than believing everything will work perfectly.
+Yes, production testing can be risky, but you can minimize your risk in two ways. First, take advantage of test automation, don’t bypass running tests in staging because you will be testing in production. (Yes, we mentioned this earlier but it bears repeating). Second, ensure you have the right processes in place to support testing in production, including the use of feature flags.
+A
+feature flag
+, or feature toggle, is a software development process used to enable or disable functionality without deploying code. You can wrap a feature in a flag to deploy them to production without making them visible to all users. Once the flag is in production you can give test engineers or software engineers access to run tests or experiments. Feature flags are a critical element to safely testing in production.
+Here’s how feature flags can help to mitigate risks when testing in production.
+Small bets
+Smaller changes
+are easier to undo, and testing a feature with a small group of users enables you to take risks you wouldn’t want to take with all of your users. Share new features with trusted, low-risk customers first to see if you’re headed in the right direction and to identify any “weirdnes

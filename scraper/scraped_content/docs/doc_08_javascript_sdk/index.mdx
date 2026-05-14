@@ -1,0 +1,457 @@
+---
+path: /sdk/client-side/javascript
+title: JavaScript SDK reference
+description: This topic documents how to get started with the client-side JavaScript SDK, and links to reference information on all of the supported features.
+tags: ['javascript', 'js sdk', 'js', 'sdk', 'client-side']
+published: true
+---
+
+<Callout intent="info">
+<CalloutTitle>Version 3 of the JavaScript SDK replaces users with contexts</CalloutTitle>
+<CalloutDescription>
+
+A context is a generalized way of referring to the people, services, machines, or other resources that encounter feature flags in your product. Contexts replace another data object in LaunchDarkly: "users."
+
+Code samples on this page are from the two most recent SDK versions where they differ. To learn more about upgrading, read [JavaScript SDK 2.x to 3.0 migration guide](/sdk/client-side/javascript/migration-2-to-3) and [Best practices for upgrading users to contexts](/guides/flags/upgrading-contexts).
+
+</CalloutDescription>
+</Callout>
+
+## Overview
+
+This topic documents how to get started with the client-side JavaScript SDK, and links to reference information on all of the supported features.
+
+<Callout intent="primary">
+<CalloutTitle>SDK quick links</CalloutTitle>
+<CalloutDescription>
+
+LaunchDarkly's SDKs are open source. In addition to this reference guide, we provide source, API reference documentation, and a sample application:
+
+<Table>
+  <TableHeader>
+    <TableHeadCell>Resource</TableHeadCell>
+    <TableHeadCell>Location</TableHeadCell>
+  </TableHeader>
+  <TableBody>
+    <TableRow>
+      <TableCell>SDK API documentation</TableCell>
+      <TableCell>[SDK API docs](https://launchdarkly.github.io/js-client-sdk/)</TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell>GitHub repository</TableCell>
+      <TableCell>[js-client-sdk](https://github.com/launchdarkly/js-client-sdk)</TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell>Sample application</TableCell>
+      <TableCell>[JavaScript](https://github.com/launchdarkly/hello-js)</TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell>Published module</TableCell>
+      <TableCell>[npm](https://www.npmjs.com/package/launchdarkly-js-client-sdk)</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>
+
+</CalloutDescription>
+</Callout>
+
+<Callout intent="info">
+<CalloutTitle>For use in mobile, desktop, and embedded client applications only</CalloutTitle>
+<CalloutDescription>
+
+This SDK is intended for use in single-user mobile, desktop, and embedded applications. It is intended for client-side (browser) feature flags only. If you have a Node.js application and want to set up LaunchDarkly on the server-side, read the [server-side Node.js SDK reference](/sdk/server-side/node-js).
+
+To learn more about LaunchDarkly's different SDK types, read [Client-side and server-side SDKs](/sdk/concepts/client-side-server-side).
+
+</CalloutDescription>
+</Callout>
+
+<Callout intent="info">
+<CalloutTitle>Do you need information about Svelte, Angular, or other frameworks?</CalloutTitle>
+<CalloutDescription>
+
+LaunchDarkly does not offer SDKs for all languages or frameworks. If you're searching for information about using Svelte, Preact, or Angular with LaunchDarkly, you may be able to use the JavaScript SDK instead.
+
+To request support for a specific language or framework, [contact Support](https://support.launchdarkly.com/hc/en-us/requests/new).
+
+</CalloutDescription>
+</Callout>
+
+This SDK does two things:
+
+- Makes feature flags available to your client-side (front-end) JavaScript code.
+- Sends `click`, `page view`, and `custom` events from your front-end for A/B tests and analytics.
+
+The sample code snippets for this SDK are available in both JavaScript and TypeScript, where the sample code differs. To learn more, read [Using LaunchDarkly with TypeScript](https://launchdarkly.com/blog/using-launchdarkly-with-typescript/).
+
+## Browser support
+
+The LaunchDarkly client-side JavaScript SDK can be used in all major browsers. However, not all browsers have built-in support for the standard APIs that it uses. Those APIs are Promise, EventSource, and querySelectorAll. The SDK always requires Promise, but the other two are optional depending on which SDK features you use.
+
+The standard solution for ensuring that you will get the same functionality even in browsers that do not have native support for these features is to use [polyfills](https://developer.mozilla.org/en-US/docs/Glossary/Polyfill). For a detailed description, and links to information about which browsers may require this, read [JS SDK requirements and polyfills](/sdk/client-side/javascript/requirements-polyfills).
+
+Additionally, the JavaScript SDK versions 3.0.0 and 3.1.0 use optional chaining. If you encounter an error related to optional chaining during transpiling, bundling, or running tests, updating to version 3.1.1 should resolve the error.
+
+<Callout intent="alert">
+<CalloutTitle>Do Not Track and ad blocking software</CalloutTitle>
+<CalloutDescription>
+
+The JavaScript SDK respects the [Do Not Track events](https://www.eff.org/issues/do-not-track) header. If an end user has Do Not Track enabled in their browser, the SDK does not send analytics events for flag evaluations or goals. In addition, ad-blocking software may block analytics events from being sent. This does not impact feature flag evaluations. To learn more about the events SDKs send to LaunchDarkly, read [Analytics events](/sdk/concepts/events).
+
+</CalloutDescription>
+</Callout>
+
+## Getting started
+
+After you complete the [Getting started](/home/getting-started) process, follow these instructions to start using the LaunchDarkly JavaScript SDK in your JavaScript code.
+
+The first step is to make the JavaScript SDK available as a dependency. There are two ways to make the JavaScript SDK available: as a module with a package manager, or with a `script` tag.
+
+### Making the SDK available with a package manager
+
+In most cases, making the JavaScript SDK available to your application or site requires running one of the following in your project:
+
+<CodeSample>
+<CSTab label="npm">
+
+```bash
+npm install launchdarkly-js-client-sdk
+```
+
+</CSTab>
+<CSTab label="yarn">
+
+```bash
+yarn add launchdarkly-js-client-sdk
+```
+
+</CSTab>
+<CSTab label="bower">
+
+```bash
+# LaunchDarkly's JS SDK script is copied from unpkg in this example
+bower install https://unpkg.com/launchdarkly-js-client-sdk@3
+```
+
+</CSTab>
+</CodeSample>
+
+If you are using a package manager, and combining dependencies with your code using a tool such as Webpack, there are various ways to import the JavaScript SDK into your code.
+
+Here are some examples in commonly used frameworks:
+
+<CodeSample>
+<CSTab label="JavaScript">
+
+```js
+// Using require()
+const LDClient = require('launchdarkly-js-client-sdk');
+
+// Using ES2015 imports
+import * as LDClient from 'launchdarkly-js-client-sdk';
+
+// Using TypeScript imports
+import * as LDClient from 'launchdarkly-js-client-sdk';
+
+```
+
+</CSTab>
+</CodeSample>
+
+In earlier versions of the SDK, the package was named `ldclient-js` instead of `launchdarkly-js-client-sdk`.
+
+### Making the SDK available with a script tag
+
+To load the JavaScript SDK as a script tag, include one of the following in the `<head>` tag of your site on any pages where you need feature flags or want to track metrics for Experimentation.
+
+<Callout intent="alert">
+<CalloutTitle>Do not use script tags from unpkg or jsDelivr in production</CalloutTitle>
+<CalloutDescription>
+
+ The `script` tag in the self-hosted example below references a script which is deployed alongside other JavaScript resources in your application. We recommend that you use this method in production.
+
+ Do not use script tags with sources from unpkg and jsDelivr in production environments. These introduce a critical dependency on a third-party service. The unpkg and jsDelivr scripts are intended to be used only for ease of development and getting started.
+
+ In production environments, we strongly recommend that you self-host the JavaScript SDK alongside your other JavaScript resources.
+
+</CalloutDescription>
+</Callout>
+
+If you are working in a development environment, you can load the SDK from unpkg or jsDelivr using the example code below. Replace the `<EXAMPLE-VERSION>` with your desired version. To learn more, read [Releases](https://github.com/launchdarkly/js-client-sdk/releases) in the [JavaScript SDK GitHub repository](https://github.com/launchdarkly/js-client-sdk). We recommend pinning to an exact SDK version if you are using a third-party hosting service.
+
+Here is an example of code to include in the `<head>` tag of your site:
+
+<CodeSample>
+<CSTab label="Loading from a self-hosted script">
+
+```html
+
+<!-- recommended for production environments -->
+<script src="path/to/ldclient.min.js"></script>
+
+```
+
+</CSTab>
+<CSTab label="Loading from unpkg">
+
+```bash
+
+<script crossorigin="anonymous" src="https://unpkg.com/launchdarkly-js-client-sdk@<EXAMPLE-VERSION>"></script>
+
+```
+
+</CSTab>
+<CSTab label="Loading from jsDelivr">
+
+```bash
+
+<script crossorigin="anonymous" src="https://cdn.jsDelivr.net/npm/launchdarkly-js-client-sdk@<EXAMPLE-VERSION>"></script>
+
+```
+
+</CSTab>
+</CodeSample>
+
+## Working with the client
+
+After you install the dependency, initialize the LaunchDarkly client. Then, use an event or promise to determine when the client is ready. Next, subscribe to updates. Finally, shut down the client when your application terminates.
+
+The following sections describe these steps in more detail:
+
+* [Initialize the client](#initialize-the-client)
+* [Use events to determine when the client is ready](#use-events-to-determine-when-the-client-is-ready)
+* [Use promises to determine when the client is ready](#use-promises-to-determine-when-the-client-is-ready)
+* [Subscribe to updates](#subscribe-to-updates)
+* [Shut down the client](#shut-down-the-client)
+
+<Callout intent="alert">
+<CalloutTitle>Making feature flags available to this SDK</CalloutTitle>
+<CalloutDescription>
+
+You must make feature flags available to client-side SDKs before the SDK can evaluate those flags. If an SDK tries to evaluate a feature flag that is not available, the context will receive the fallback value for that flag.
+
+To make a flag available to this SDK, check the **SDKs using Client-side ID** checkbox during flag creation, or on the flag's **Settings** tab. To make all of a project's flags available to this SDK by default, check the **SDKs using Client-side ID** checkbox in your project [Settings](https://app.launchdarkly.com/settings/projects).
+
+</CalloutDescription>
+</Callout>
+
+### Initialize the client
+
+<Callout intent="info">
+<CalloutTitle>The JavaScript SDK uses a client-side ID</CalloutTitle>
+<CalloutDescription>
+
+The JavaScript SDK uses a client-side ID. Your environment's client-side ID is available in the **Projects** tab of your [**Account settings**](https://app.launchdarkly.com/settings#/projects) page. To learn more about key types, read [Keys](/sdk/concepts/client-side-server-side#keys).
+
+</CalloutDescription>
+</Callout>
+
+To create a client instance, you need your LaunchDarkly environment's client-side ID. This authorizes your application to connect to a particular environment within LaunchDarkly.
+
+<Callout intent="alert">
+<CalloutTitle>Never embed a server-side SDK key into a client-side application</CalloutTitle>
+<CalloutDescription>
+
+Client-side IDs are not secret and you can expose them in your client-side code without risk. However, never embed a server-side SDK key into a client-side application.
+
+</CalloutDescription>
+</Callout>
+
+<Callout intent="alert">
+<CalloutTitle>LDClient must be a singleton</CalloutTitle>
+<CalloutDescription>
+
+It's important to make `LDClient` a singleton for each LaunchDarkly project. The client instance maintains internal state that allows LaunchDarkly to serve feature flags without making any remote requests. Do not instantiate a new client with every request.
+
+If you have multiple LaunchDarkly projects, you can create one `LDClient` for each. In this situation, the clients operate independently. For example, they do not share a single connection to LaunchDarkly.
+
+</CalloutDescription>
+</Callout>
+
+In practice, you should templatize your client-side ID so that you can use the same initialization code when you switch between development, QA, and production environments.
+
+Feature flag targeting and rollouts are determined by the end user viewing the page. You must pass a context to the SDK during initialization before requesting any feature flags with `variation`. If you fail to pass a valid context to the SDK during initialization, you will receive a 400 error.
+
+Here is an example showing how to initialize the client:
+
+<CodeSample>
+<CSTab label="JavaScript SDK v3 (JavaScript)">
+
+```js
+const context = {
+  kind: 'user',
+  key: 'context-key-123abc'
+};
+const client = LDClient.initialize('client-side-id-123abc', context);
+```
+
+</CSTab>
+<CSTab label="JavaScript SDK v3 (TypeScript)">
+
+```ts
+const context: LDClient.LDContext = {
+  kind: 'user',
+  key: 'context-key-123abc'
+};
+const client = LDClient.initialize('client-side-id-123abc', context);
+```
+
+</CSTab>
+<CSTab label="JavaScript SDK v2.x (JavaScript)">
+
+```js
+const user = {
+  key: 'user-key-123abc'
+};
+const client = LDClient.initialize('client-side-id-123abc', user);
+```
+
+</CSTab>
+<CSTab label="JavaScript SDK v2.x (TypeScript)">
+
+```ts
+const user: LDClient.LDUser = {
+  key: 'user-key-123abc'
+};
+const client = LDClient.initialize('client-side-id-123abc', user);
+```
+
+</CSTab>
+</CodeSample>
+
+<Callout intent="info">
+<CalloutTitle>Initialization delay</CalloutTitle>
+<CalloutDescription>
+
+Initializing the client makes a remote request to LaunchDarkly. Depending on your network conditions, it may take a couple hundred milliseconds before the SDK emits the ready event. If you require feature flag values before rendering the page, we recommend bootstrapping the client. If you bootstrap the client, it will emit the ready event immediately. To learn more, read [Bootstrapping](/sdk/features/bootstrapping#javascript).
+
+To learn about best practices when using other default flag value methods, read [Eliminating flicker when using default flag values](/sdk/client-side/javascript/default-values).
+
+</CalloutDescription>
+</Callout>
+
+### Use events to determine when the client is ready
+
+To find out when the client is ready, you can use one of two mechanisms: events or [promises](#use-promises-to-determine-when-the-client-is-ready).
+
+The client object can emit JavaScript events. It emits a `ready` event when it receives initial flag values from LaunchDarkly. You can listen for this event to determine when the client is ready to evaluate flags.
+
+Here's how:
+
+<CodeSample>
+<CSTab label="JavaScript">
+
+```js
+client.on('ready', () => {
+  // initialization succeeded, flag values are now available
+  const flagValue = client.variation('flag-key-123abc', false);
+  // etc.
+});
+```
+
+</CSTab>
+<CSTab label="TypeScript">
+
+```ts
+client.on('ready', () => {
+  // initialization succeeded, flag values are now available
+  const boolFlagValue = client.variation('flag-key-123abc', false) as boolean;
+  const numberFlagValue = client.variation('flag-key-123abc', 2) as number;
+  const stringFlagValue = client.variation('flag-key-123abc', 'default') as string;
+  // etc.
+});
+```
+
+</CSTab>
+</CodeSample>
+
+The client emits the `ready` event only once, when it finishes initializing. If you receive an error message about the `ldclient.on('ready')` callback not firing, this means that the SDK began listening for the `ready` event too late, after the client already emitted it. To fix this, move the `ready` listener to immediately after you call `initialize`, or use a promise instead.
+
+### Use promises to determine when the client is ready
+
+To find out when the client is ready, you can use one of two mechanisms: [events](#use-events-to-determine-when-the-client-is-ready) or promises.
+
+The SDK has two methods that return a promise for initialization: `waitUntilReady()` and `waitForInitialization()`. The behavior of `waitUntilReady()` is equivalent to the `ready` event. The promise resolves when the client receives its initial flag data. As with all promises, you can either use `.then()` to provide a callback, or use `await` if you are writing asynchronous code.
+
+Here is an example:
+
+<CodeSample>
+<CSTab label="JavaScript">
+
+```js
+client.waitUntilReady().then(() => {
+  // initialization succeeded,
+  // flag values are now available through the client
+});
+
+// or, with await:
+await client.waitUntilReady();
+// initialization succeeded,
+// flag values are now available through the client
+```
+
+</CSTab>
+</CodeSample>
+
+The other method that returns a promise, `waitForInitialization()`, is similar to `waitUntilReady()` except that it also tells you if initialization fails by rejecting the promise. This method never rejects the `waitUntilReady()` promise.
+
+Here is an example:
+
+<CodeSample>
+<CSTab label="JavaScript">
+
+```js
+client.waitForInitialization().then(() => {
+  // initialization succeeded, flag values are now available
+}).catch(err => {
+  // initialization failed
+});
+
+// or, with await:
+try {
+  await client.waitForInitialization();
+  // initialization succeeded, flag values are now available
+} catch (err) {
+  // initialization failed
+}
+```
+
+</CSTab>
+</CodeSample>
+
+The SDK only decides initialization has failed if it receives an error response indicating that the environment ID is invalid. If it has trouble connecting to LaunchDarkly, it will keep retrying until it succeeds.
+
+### Subscribe to updates
+
+The SDK does not subscribe to streaming real-time updates automatically when you initialize it.
+
+If you set the `streaming` configuration option to `true`, the client will always attempt to maintain a streaming connection. If you leave the `streaming` value undefined, which is the default, the client will open a streaming connection if you subscribe to `change` or `change:flag-key` events. In other words, subscribing to the SDK's change event by calling `.on('change').` causes the SDK to open a streaming connection to LaunchDarkly. This is the only way to receive real-time updates. To learn more, read [`streaming`](https://launchdarkly.github.io/js-client-sdk/interfaces/LDOptions.html#streaming).
+
+If you do enable streaming, you will also need `EventSource`. If you also enable the SDK's [`useReport` configuration option](https://launchdarkly.github.io/js-client-sdk/interfaces/LDOptions.html#useReport), you will need LaunchDarkly's `EventSource` polyfill. To learn more, read [EventSource](/sdk/client-side/javascript/requirements-polyfills#eventsource).
+
+### Shut down the client
+
+Lastly, shut down the client when your application terminates. To learn more, read [Shutting down](/sdk/features/shutdown#javascript).
+
+## Supported features
+
+This SDK supports the following features:
+
+* [Anonymous contexts and users](/sdk/features/anonymous#javascript)
+* [Bootstrapping](/sdk/features/bootstrapping#javascript)
+* [Configuration](/sdk/features/config#javascript)
+* [Evaluating flags](/sdk/features/evaluating#javascript)
+* [Flag evaluation reasons](/sdk/features/evaluation-reasons#javascript)
+* [Flushing events](/sdk/features/flush#javascript)
+* [Getting all flags](/sdk/features/all-flags#javascript)
+* [Identifying and changing contexts](/sdk/features/identify#javascript)
+* [Inspectors](/sdk/features/inspectors#javascript)
+* [Logging](/sdk/features/logging#javascript)
+* [Private attributes](/sdk/features/private-attributes#javascript)
+* [Relay Proxy configuration, using proxy mode](/sdk/features/relay-proxy-configuration/proxy-mode#javascript)
+* [Secure mode](/sdk/features/secure-mode#configuring-secure-mode-in-the-javascript-client-side-sdk)
+* [Sending custom events](/sdk/features/events#javascript)
+* [Service endpoint configuration](/sdk/features/service-endpoint-configuration#javascript)
+* [Shutting down](/sdk/features/shutdown#javascript)
+* [Subscribing to flag changes](/sdk/features/flag-changes#javascript)
+* [User and context configuration](/sdk/features/user-context-config#javascript)

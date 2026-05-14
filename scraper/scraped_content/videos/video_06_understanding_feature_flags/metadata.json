@@ -1,0 +1,25 @@
+{
+  "slug": "video_06_understanding_feature_flags",
+  "content_type": "video",
+  "title": "Understanding Feature Flags with LaunchDarkly",
+  "description": "Foundational overview of feature flags: what they are, why they matter, and how LaunchDarkly makes feature management scalable.",
+  "source_url": "https://www.youtube.com/watch?v=uPCSrWi9IV8",
+  "tags": [
+    "feature-flags",
+    "overview",
+    "foundational",
+    "explainer"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Understanding Feature Flags with LaunchDarkly",
+    "author": "LaunchDarkly",
+    "thumbnail_url": "https://i.ytimg.com/vi/uPCSrWi9IV8/hqdefault.jpg",
+    "local_thumbnail": "scraped_content/videos/video_06_understanding_feature_flags/thumbnail.jpg",
+    "width": 200,
+    "height": 113
+  },
+  "file_url": "https://www.youtube.com/watch?v=uPCSrWi9IV8",
+  "is_external_url": true
+}

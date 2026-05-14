@@ -1,0 +1,36 @@
+{
+  "slug": "code_02_hello_node_server",
+  "content_type": "code",
+  "title": "hello-node-server",
+  "description": "Hello LaunchDarkly for Node.js (server-side)",
+  "source_url": "https://github.com/launchdarkly/hello-node-server",
+  "tags": [
+    "code",
+    "nodejs",
+    "server-side",
+    "sample",
+    "sdk"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "hello-node-server",
+    "scraped_description": "Hello LaunchDarkly for Node.js (server-side)",
+    "stars": 5,
+    "forks": 6,
+    "language": "JavaScript",
+    "default_branch": "main",
+    "local_readme": "scraped_content/codes/code_02_hello_node_server/README.md",
+    "file_tree": [
+      ".github",
+      ".gitignore",
+      "CODEOWNERS",
+      "LICENSE.txt",
+      "README.md",
+      "index.js",
+      "package.json"
+    ]
+  },
+  "file_url": "https://github.com/launchdarkly/hello-node-server",
+  "is_external_url": true
+}

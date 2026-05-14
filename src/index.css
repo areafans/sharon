@@ -2242,9 +2242,46 @@ img.brand-mark {
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 4px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.cv-sources-list-label:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+.cv-sources-list.open .cv-sources-list-label {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+.cv-sources-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.cv-sources-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  transition: transform 0.18s ease;
 }
 .cv-src-link {
   display: flex;

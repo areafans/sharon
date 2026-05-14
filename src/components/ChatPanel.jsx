@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLDClient, useFlags } from 'launchdarkly-react-client-sdk';
 import { supabase } from '../lib/supabase';
 import Icons from './Icons';
 import { TYPE_META } from './Poster';
+import { parseAIConfig, aiConfigLabel } from '../lib/launchdarkly';
+import { runAgentGraph, AGENT_KEYS, ROUTE_CONFIG } from '../lib/agentGraph';
+
+const TAVILY_KEY = import.meta.env.VITE_TAVILY_API_KEY;
 
 const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const CLAUDE_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
-
-const SYSTEM_PROMPT = `You are Sharon, an AI assistant for an internal content repository used by a Solutions Engineering team.
-
-You operate in two modes based on the message:
-
-1. CONTENT DISCOVERY: When someone asks to find, search, or wants to know what exists, search and recommend relevant items from the library context provided.
-
-2. IDEATION / BRAINSTORM: When someone wants to build, create, draft, or brainstorm something new, help them develop a structured idea. Ask clarifying questions first (audience, format, goals), then produce a structured JSON artifact with this shape:
-   {"isDraft": true, "title": "...", "summary": "...", "outline": ["section 1", "section 2", ...]}
-
-Always be specific, concise, and actionable. Reference content by title when recommending. If generating a draft artifact, include the JSON inline in your response wrapped in <draft>...</draft> tags.`;
 
 async function embedText(text) {
   const res = await fetch('https://api.openai.com/v1/embeddings', {
@@ -28,11 +21,11 @@ async function embedText(text) {
   return data.data[0].embedding;
 }
 
-async function searchContent(embedding) {
+async function searchContent(embedding, matchCount = 5) {
   try {
     const { data } = await supabase.rpc('match_content', {
       query_embedding: embedding,
-      match_count: 5,
+      match_count: matchCount,
     });
     return data || [];
   } catch {
@@ -73,12 +66,16 @@ function parseReply(text, searchResults, items) {
 }
 
 function InlineCard({ card, items, onOpen }) {
+  const ldClient = useLDClient();
   const item = items.find(i => i.id === card.id);
   if (!item) return null;
   const meta = TYPE_META[item.content_type] || TYPE_META.doc;
 
   return (
-    <button className="inline-content-card" onClick={() => onOpen(item)}>
+    <button className="inline-content-card" onClick={() => {
+      ldClient?.track('chat-content-opened', { contentType: item.content_type, relevance: card.relevance });
+      onOpen(item);
+    }}>
       <div className={`inline-card-poster ${meta.poster}`}>
         {meta.label.slice(0, 3).toUpperCase()}
       </div>
@@ -98,6 +95,7 @@ function InlineCard({ card, items, onOpen }) {
 }
 
 function IdeaDraftCard({ draft, onSave }) {
+  const ldClient = useLDClient();
   return (
     <div className="idea-draft">
       <div className="idea-draft-label">
@@ -111,7 +109,10 @@ function IdeaDraftCard({ draft, onSave }) {
         </ul>
       )}
       <div className="idea-draft-actions">
-        <button className="btn btn-primary btn-sm" onClick={() => onSave(draft)}>
+        <button className="btn btn-primary btn-sm" onClick={() => {
+          ldClient?.track('chat-draft-saved');
+          onSave(draft);
+        }}>
           <Icons.Bookmark size={13} /> Save as idea
         </button>
       </div>
@@ -124,9 +125,115 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('auto');
   const [thinking, setThinking] = useState(false);
+  const [routingStatus, setRoutingStatus] = useState(null); // { label, hint } while an agent runs
   const [chatSessionId, setChatSessionId] = useState(null);
   const bodyRef = useRef(null);
   const taRef = useRef(null);
+
+  // All agent AI Configs are read from LaunchDarkly at runtime.
+  // Swapping a model or system prompt in the LD UI takes effect immediately —
+  // no code deploy needed. This makes the app a live demo of LD AI Configs.
+  const ldClient = useLDClient();
+  const flags = useFlags();
+  const aiConfig = parseAIConfig(flags['hub-assistant']); // kept for footer label
+
+  // Tool executors — closures with access to component state/props.
+  // These implement the 5 LD AI Tools registered in the sharon project.
+  const toolExecutors = {
+    search_content_library: async ({ query, limit = 5 }) => {
+      try {
+        const embedding = await embedText(query);
+        const results = await searchContent(embedding, Math.min(limit, 10));
+        const resolved = results.map(r => {
+          const item = items.find(i => i.id === r.content_id);
+          if (!item) return null;
+          return {
+            id: item.id, title: item.title, type: item.content_type,
+            description: item.description, tags: item.tags || [],
+            similarity: Math.round((r.similarity ?? 0) * 100),
+          };
+        }).filter(Boolean);
+        return JSON.stringify(resolved);
+      } catch (e) {
+        return JSON.stringify({ error: e.message });
+      }
+    },
+
+    save_idea_draft: async ({ title, summary, outline }) => {
+      try {
+        const draft = { isDraft: true, title, summary, outline };
+        const { error } = await supabase.from('ideas').insert({
+          created_by: session.user.id,
+          title, artifact: draft, published: false,
+        });
+        if (error) throw error;
+        if (onSaveIdea) onSaveIdea(draft);
+        return JSON.stringify({ success: true, message: `Idea "${title}" saved to the Ideas board.` });
+      } catch (e) {
+        return JSON.stringify({ success: false, error: e.message });
+      }
+    },
+
+    get_content_by_tag: async ({ tags }) => {
+      const matched = items
+        .filter(item => (item.tags || []).some(t => tags.includes(t)))
+        .slice(0, 10)
+        .map(item => ({ id: item.id, title: item.title, type: item.content_type, tags: item.tags || [] }));
+      return JSON.stringify(matched);
+    },
+
+    get_content_metadata: async ({ content_id }) => {
+      const item = items.find(i => i.id === content_id);
+      if (!item) return JSON.stringify({ error: 'Content item not found' });
+      return JSON.stringify({
+        id: item.id, title: item.title, type: item.content_type,
+        description: item.description, tags: item.tags || [],
+        uploader: item.uploader?.name || item.uploader?.email || 'Unknown',
+        created_at: item.created_at, view_count: item.view_count,
+        avg_rating: item.avg_rating,
+      });
+    },
+
+    track_content_engagement: async ({ content_id, interaction_type }) => {
+      ldClient?.track('content-engagement', { content_id, interaction_type, source: 'chat-panel' });
+      return JSON.stringify({ success: true });
+    },
+
+    web_search: async ({ query, num_results = 5 }) => {
+      if (!TAVILY_KEY) {
+        return JSON.stringify({
+          error: 'Web search is not configured.',
+          setup: 'Add VITE_TAVILY_API_KEY to .env.local — free tier at tavily.com (1,000 queries/month).',
+        });
+      }
+      try {
+        const res = await fetch('https://api.tavily.com/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: TAVILY_KEY,
+            query,
+            max_results: Math.min(num_results, 10),
+            include_answer: true,
+            search_depth: 'advanced',
+          }),
+        });
+        if (!res.ok) throw new Error(`Tavily error: ${res.status}`);
+        const data = await res.json();
+        return JSON.stringify({
+          answer: data.answer || null,
+          results: (data.results || []).slice(0, num_results).map(r => ({
+            title: r.title,
+            url: r.url,
+            snippet: r.content?.slice(0, 400),
+            published_date: r.published_date,
+          })),
+        });
+      } catch (e) {
+        return JSON.stringify({ error: e.message });
+      }
+    },
+  };
 
   useEffect(() => {
     if (session) loadHistory();
@@ -202,6 +309,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
         if (error) throw error;
         sessionId = newSess.id;
         setChatSessionId(newSess.id);
+        ldClient?.track('chat-session-started', { model: aiConfig.model, mode });
       } catch (e) {
         console.error('Failed to create chat session:', e.message);
         return;
@@ -215,74 +323,58 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
 
     await saveMessage('user', text, sessionId);
 
+    const sendStartMs = Date.now();
+
     try {
-      // 1. Embed query + vector search
-      let searchResults = [];
-      if (OPENAI_KEY) {
-        try {
-          const embedding = await embedText(text);
-          searchResults = await searchContent(embedding);
-        } catch (e) {
-          console.warn('Search skipped:', e.message);
-        }
-      }
-
-      // 2. Build context from search results + recent items
-      const contextItems = searchResults.length > 0
-        ? searchResults.map(r => {
-            const item = items.find(i => i.id === r.content_id);
-            if (!item) return null;
-            return `- "${item.title}" [${item.content_type}] — ${item.description || 'No description'} (tags: ${(item.tags || []).join(', ')})`;
-          }).filter(Boolean)
-        : items.slice(0, 10).map(i =>
-            `- "${i.title}" [${i.content_type}] — ${i.description || 'No description'}`
-          );
-
-      const contextBlock = contextItems.length > 0
-        ? `\n\nRelevant library content:\n${contextItems.join('\n')}`
-        : '\n\nLibrary is currently empty.';
-
-      // 3. Build history (last 20 messages)
       const historyMsgs = messages.slice(-20).map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.body,
       }));
 
-      // 4. Call Claude
-      const chatRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': CLAUDE_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          system: SYSTEM_PROMPT + contextBlock,
-          messages: [
-            ...historyMsgs,
-            { role: 'user', content: text },
-          ],
-          max_tokens: 800,
-        }),
+      ldClient?.track('chat-message-sent', { mode, queryLength: text.length });
+
+      // Run the agent graph — orchestrator routes, then specialist executes.
+      // All agent configs (model, prompt, tools) are served live from LD AI Configs.
+      const { replyText, route, agentLabel } = await runAgentGraph({
+        query: text,
+        history: historyMsgs,
+        flags,
+        toolExecutors,
+        onRoute: (info) => setRoutingStatus({ label: info.label, hint: info.hint }),
       });
 
-      if (!chatRes.ok) throw new Error(`Claude API error: ${chatRes.status}`);
-      const chatData = await chatRes.json();
-      const replyText = chatData.content[0].text;
+      ldClient?.track('chat-response-latency', null, Date.now() - sendStartMs);
+
+      // For the retrieval agent, still run vector search to populate inline cards
+      let searchResults = [];
+      if (route === 'retrieval' && OPENAI_KEY) {
+        try {
+          const embedding = await embedText(text);
+          searchResults = await searchContent(embedding);
+        } catch { /* non-fatal */ }
+      }
 
       const { body, draft, cards } = parseReply(replyText, searchResults, items);
 
-      const reply = { role: 'ai', body, time: 'Just now', cards: cards.length > 0 ? cards : undefined, draft };
+      const reply = {
+        role: 'ai',
+        body,
+        time: 'Just now',
+        agentLabel,
+        cards: cards.length > 0 ? cards : undefined,
+        draft,
+      };
       setMessages(m => [...m, reply]);
       await saveMessage('assistant', replyText, sessionId);
     } catch (err) {
       console.error('Chat error:', err);
+      ldClient?.track('chat-error', { mode });
       const errMsg = { role: 'ai', body: 'Sorry, I hit an error. Please try again.', time: 'Just now' };
       setMessages(m => [...m, errMsg]);
       await saveMessage('assistant', errMsg.body, sessionId);
     } finally {
       setThinking(false);
+      setRoutingStatus(null);
     }
   }
 
@@ -304,7 +396,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
         <div className="ai-orb-sm"><Icons.Sparkle size={13} /></div>
         <div style={{ flex: 1 }}>
           <div className="chat-header-title">Hub Assistant</div>
-          <div className="chat-header-sub">Discovery · Ideation</div>
+          <div className="chat-header-sub">Discovery · Writing · Research</div>
         </div>
         <button className="btn btn-ghost btn-sm" title="New session" onClick={() => setMessages([])}>
           <Icons.Plus size={14} />
@@ -350,7 +442,10 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
                   <div className="ai-orb-sm" style={{ width: 16, height: 16 }}>
                     <Icons.Sparkle size={9} />
                   </div>
-                  Searching · synthesizing…
+                  {routingStatus
+                    ? <><strong>{routingStatus.label}</strong> · {routingStatus.hint}</>
+                    : 'Routing query…'
+                  }
                 </div>
                 <div className="msg-bubble">
                   <div className="thinking"><span /><span /><span /></div>
@@ -384,7 +479,7 @@ export default function ChatPanel({ collapsed, onToggle, onOpenContent, onSaveId
             </button>
           </div>
         </div>
-        <div className="chat-disclaimer">Claude 3.5 Haiku · last 20 messages as context</div>
+        <div className="chat-disclaimer">Agent graph · 4 specialists · powered by LaunchDarkly AI Configs</div>
       </div>
     </div>
   );
@@ -418,6 +513,10 @@ function ChatEmpty({ onPrompt }) {
           <div className="suggested-prompt-icon">IDE</div>
           Help me put together a technical briefing for a platform engineering team
         </button>
+        <button className="suggested-prompt" onClick={() => onPrompt('Research Datadog — what are their key differentiators against LaunchDarkly for feature management?')}>
+          <div className="suggested-prompt-icon">RES</div>
+          Research Datadog — competitive positioning vs LaunchDarkly for feature management
+        </button>
       </div>
     </div>
   );
@@ -439,7 +538,7 @@ function ChatMessage({ msg, items, onOpenContent, onSaveIdea }) {
         <div className="ai-orb-sm" style={{ width: 16, height: 16 }}>
           <Icons.Sparkle size={9} />
         </div>
-        Hub Assistant · {msg.time}
+        {msg.agentLabel ? `${msg.agentLabel}` : 'Hub Assistant'} · {msg.time}
       </div>
       <div className="msg-bubble">
         <div className="ai-answer">

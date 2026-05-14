@@ -1,0 +1,26 @@
+{
+  "slug": "demo_01_feature_flag_mistakes",
+  "content_type": "demo",
+  "title": "7 Mistakes You\u2019re Making with Feature Flags | LaunchDarkly",
+  "description": "Common missteps many make in their feature flag journey revealed, and how to avoid them.",
+  "source_url": "https://launchdarkly.com/blog/feature-flag-mistakes",
+  "tags": [
+    "best-practices",
+    "anti-patterns",
+    "tips",
+    "blog"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "7 Mistakes You\u2019re Making with Feature Flags | LaunchDarkly",
+    "scraped_description": "Common missteps many make in their feature flag journey revealed, and how to avoid them.",
+    "image_url": "https://images.prismic.io/launchdarkly/5881518c-aa77-4a08-9710-e6163aae47e9_22-07-7+mistakes+you%E2%80%99re+making+with+feature+flags.png?auto=compress,format",
+    "local_image": "scraped_content/demos/demo_01_feature_flag_mistakes/preview.png",
+    "local_html": "scraped_content/demos/demo_01_feature_flag_mistakes/page.html",
+    "local_text": "scraped_content/demos/demo_01_feature_flag_mistakes/content.txt",
+    "text_length": 6298
+  },
+  "file_url": "https://launchdarkly.com/blog/feature-flag-mistakes",
+  "is_external_url": true
+}

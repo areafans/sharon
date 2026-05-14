@@ -1,0 +1,26 @@
+{
+  "slug": "doc_03_experimentation",
+  "content_type": "doc",
+  "title": "About Experimentation",
+  "description": "Overview of the LaunchDarkly experimentation platform: A/B testing, metric types, stats engine, and experiment lifecycle management.",
+  "source_url": "https://docs.launchdarkly.com/home/experimentation",
+  "tags": [
+    "docs",
+    "experimentation",
+    "ab-testing",
+    "stats",
+    "metrics"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T16:02:12.567104+00:00",
+  "scrape_detail": {
+    "scraped_title": "About Experimentation",
+    "scraped_description": "Overview of the LaunchDarkly experimentation platform: A/B testing, metric types, stats engine, and experiment lifecycle management.",
+    "raw_url": "https://raw.githubusercontent.com/launchdarkly/LaunchDarkly-Docs/main/src/content/topics/home/experimentation-about/index.mdx",
+    "local_mdx": "scraped_content/docs/doc_03_experimentation/index.mdx",
+    "local_text": "scraped_content/docs/doc_03_experimentation/content.txt",
+    "char_count": 11631
+  },
+  "file_url": "https://docs.launchdarkly.com/home/experimentation",
+  "is_external_url": true
+}

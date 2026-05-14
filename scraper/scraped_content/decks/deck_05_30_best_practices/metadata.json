@@ -1,0 +1,26 @@
+{
+  "slug": "deck_05_30_best_practices",
+  "content_type": "deck",
+  "title": "30 Feature Flagging Best Practices \u2014 Mega Guide",
+  "description": "Comprehensive 30-practice guide covering flag naming, lifecycle management, targeting, cleanup, organizational patterns, and common pitfalls to avoid.",
+  "source_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/30-feature-flagging-best-practices-mega-guide.pdf?version=0",
+  "tags": [
+    "best-practices",
+    "feature-flags",
+    "naming",
+    "lifecycle",
+    "patterns"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "30 Feature Flagging Best Practices \u2014 Mega Guide",
+    "scraped_description": "Comprehensive 30-practice guide covering flag naming, lifecycle management, targeting, cleanup, organizational patterns, and common pitfalls to avoid.",
+    "local_pdf": "scraped_content/decks/deck_05_30_best_practices/05-30-feature-flagging-best-practices.pdf",
+    "file_size_bytes": 2187862,
+    "file_mime_type": "application/pdf",
+    "filename": "05-30-feature-flagging-best-practices.pdf"
+  },
+  "file_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/30-feature-flagging-best-practices-mega-guide.pdf?version=0",
+  "is_external_url": true
+}

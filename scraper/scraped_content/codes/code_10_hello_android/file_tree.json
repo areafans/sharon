@@ -1,0 +1,14 @@
+[
+  ".github",
+  ".gitignore",
+  "CODEOWNERS",
+  "LICENSE",
+  "README.md",
+  "app",
+  "build.gradle",
+  "gradle.properties",
+  "gradle",
+  "gradlew",
+  "gradlew.bat",
+  "settings.gradle"
+]

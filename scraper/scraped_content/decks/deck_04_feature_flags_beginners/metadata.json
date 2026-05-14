@@ -1,0 +1,25 @@
+{
+  "slug": "deck_04_feature_flags_beginners",
+  "content_type": "deck",
+  "title": "Feature Flags for Beginners",
+  "description": "Introductory guide covering what feature flags are, why teams use them, and a practical framework for getting started with feature management.",
+  "source_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/feature-flags-for-beginners-launchdarkly.pdf?version=0",
+  "tags": [
+    "feature-flags",
+    "beginners",
+    "onboarding",
+    "intro"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Feature Flags for Beginners",
+    "scraped_description": "Introductory guide covering what feature flags are, why teams use them, and a practical framework for getting started with feature management.",
+    "local_pdf": "scraped_content/decks/deck_04_feature_flags_beginners/04-feature-flags-for-beginners.pdf",
+    "file_size_bytes": 2355496,
+    "file_mime_type": "application/pdf",
+    "filename": "04-feature-flags-for-beginners.pdf"
+  },
+  "file_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/feature-flags-for-beginners-launchdarkly.pdf?version=0",
+  "is_external_url": true
+}

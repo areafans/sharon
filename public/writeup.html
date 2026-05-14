@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SE Content Hub — Moonshot Writeup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #0A0A09;
+      --ink-2: #2B2B28;
+      --muted: #6B6864;
+      --muted-light: #9B9791;
+      --line: #E4E2DC;
+      --line-strong: #CCC9C0;
+      --bg: #FFFFFF;
+      --bg-surface: #F7F6F2;
+      --accent-blue: #4A6FD4;
+      --accent-blue-bg: #EEF2FC;
+      --accent-green: #1A7A50;
+      --accent-green-bg: #E6F4ED;
+      --accent-orange: #B84A1A;
+      --accent-orange-bg: #FCF0EA;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── NAV ─────────────────────────────────────────────────────────── */
+
+    nav {
+      background: #0A0A09;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .nav-logo {
+      width: 26px;
+      height: 26px;
+    }
+
+    .nav-name {
+      color: #FFFFFF;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-meta {
+      color: rgba(255,255,255,0.45);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────────────────── */
+
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 64px 32px 120px;
+    }
+
+    /* ─── HEADER BLOCK ────────────────────────────────────────────────── */
+
+    .breadcrumb {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      margin-bottom: 20px;
+    }
+
+    .lede {
+      font-size: 17px;
+      line-height: 1.65;
+      color: var(--ink-2);
+      max-width: 680px;
+      margin-bottom: 24px;
+    }
+
+    .byline {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .byline-tag {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 36px 0;
+    }
+
+    /* ─── SECTIONS ────────────────────────────────────────────────────── */
+
+    .section {
+      margin-bottom: 56px;
+    }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+      margin-top: 28px;
+    }
+
+    p {
+      font-size: 16px;
+      line-height: 1.72;
+      color: var(--ink-2);
+      margin-bottom: 16px;
+    }
+
+    p strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* ─── ARCHITECTURE CSS DIAGRAM ───────────────────────────────────── */
+
+    .arch {
+      background: var(--bg-surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0 8px;
+    }
+
+    /* LD control plane banner */
+    .arch-ld-plane {
+      background: #EEF2FC;
+      border: 1.5px solid #8FA8E8;
+      border-radius: 8px;
+      padding: 14px 18px 16px;
+    }
+
+    .arch-ld-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #4A6FD4;
+      margin-bottom: 12px;
+    }
+
+    .arch-ld-flags {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .arch-flag-box {
+      background: #fff;
+      border: 1px solid #C2D0F2;
+      border-radius: 6px;
+      padding: 10px 13px;
+    }
+
+    .arch-flag-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+      font-family: var(--font-mono);
+      margin-bottom: 3px;
+    }
+
+    .arch-flag-type { font-size: 11px; color: var(--muted); }
+
+    /* Connector rows */
+    .arch-connectors-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 0 24px;
+    }
+
+    .arch-conn-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .arch-conn-line {
+      width: 1.5px;
+      height: 14px;
+      background: var(--line-strong);
+    }
+
+    .arch-conn-line.dashed {
+      background: none;
+      border-left: 1.5px dashed #8FA8E8;
+    }
+
+    .arch-conn-label {
+      font-size: 10px;
+      color: var(--muted-light);
+      padding: 1px 0;
+    }
+
+    .arch-conn-label.blue { color: #8FA8E8; }
+
+    .arch-conn-arrow {
+      font-size: 9px;
+      line-height: 1;
+      color: var(--line-strong);
+    }
+
+    .arch-conn-arrow.blue { color: #8FA8E8; }
+
+    /* Surface boxes row */
+    .arch-surfaces {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .arch-surface {
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 7px;
+      padding: 13px 14px;
+    }
+
+    .arch-surface-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .arch-surface-role {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-bottom: 7px;
+    }
+
+    .arch-surface-tech {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: var(--muted-light);
+      line-height: 1.5;
+    }
+
+    /* Data layer */
+    .arch-data-layer {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 8px;
+    }
+
+    .arch-data-sub {
+      background: #E6F4ED;
+      border: 1.5px solid #7DC7A0;
+      border-radius: 7px;
+      padding: 12px 14px;
+    }
+
+    .arch-data-ai {
+      background: #F3ECF9;
+      border: 1.5px solid #B891D4;
+      border-radius: 7px;
+      padding: 12px 14px;
+    }
+
+    .arch-data-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .arch-data-desc {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* Legend */
+    .arch-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 20px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .arch-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .arch-legend-swatch {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .swatch-ld  { background: #D6E0FC; border: 1.5px solid #8FA8E8; }
+    .swatch-sub { background: #E6F4ED; border: 1.5px solid #7DC7A0; }
+    .swatch-ai  { background: #F3ECF9; border: 1.5px solid #B891D4; }
+
+    /* ─── RESULTS TABLE ───────────────────────────────────────────────── */
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 16px 10px 0;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    td {
+      padding: 12px 16px 12px 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-2);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    td:first-child { font-weight: 500; color: var(--ink); }
+
+    tr:last-child td { border-bottom: none; }
+
+    /* ─── CALLOUT ─────────────────────────────────────────────────────── */
+
+    .callout {
+      background: var(--bg-surface);
+      border-left: 3px solid var(--accent-blue);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+
+    .callout p {
+      margin-bottom: 0;
+      font-size: 15px;
+    }
+
+    /* ─── NUMBERED LIST ───────────────────────────────────────────────── */
+
+    ol.spaced {
+      padding-left: 0;
+      list-style: none;
+      counter-reset: items;
+    }
+
+    ol.spaced li {
+      counter-increment: items;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    ol.spaced li::before {
+      content: counter(items);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      background: var(--accent-blue-bg);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    ol.spaced li .list-body { flex: 1; }
+    ol.spaced li .list-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+    ol.spaced li p { margin-bottom: 0; font-size: 15px; }
+
+    /* ─── FOOTER ──────────────────────────────────────────────────────── */
+
+    .footer-rule {
+      border-top: 1px solid var(--line);
+      padding-top: 28px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ─── INLINE CODE ─────────────────────────────────────────────────── */
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: var(--bg-surface);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: var(--ink-2);
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 40px 20px 80px; }
+      nav { padding: 0 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────────────────────────────── -->
+<nav>
+  <a class="nav-brand" href="#">
+    <!-- LaunchDarkly-style arrow mark -->
+    <svg class="nav-logo" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 13L13 5L21 13L13 21L5 13Z" fill="white" opacity="0.15"/>
+      <path d="M13 4L22 13L13 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M4 13H21" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    </svg>
+    <span class="nav-name">LaunchDarkly</span>
+  </a>
+  <span class="nav-meta">Internal &middot; Engineering</span>
+</nav>
+
+<!-- ── PAGE BODY ─────────────────────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Header block -->
+  <div class="breadcrumb">Moonshot XXIII &middot; Readout</div>
+
+  <h1>SE Content Hub: what it took to give the library a brain</h1>
+
+  <p class="lede">
+    One upload pipeline, one AI assistant, one LaunchDarkly control plane. Every deck, demo, video, and doc your team has ever shared — instantly queryable in plain English, access-controlled by a flag edit, no redeploy required. Notes on the architecture, what surprised us, and what we'd do differently.
+  </p>
+
+  <div class="byline">
+    Solutions Engineering campaign &nbsp;&middot;&nbsp;
+    <span class="byline-tag">internal</span>
+  </div>
+
+  <hr />
+
+  <!-- ── WHAT WE TRIED TO PROVE ─────────────────────────────────────────── -->
+  <div class="section">
+    <h2>What we tried to prove</h2>
+
+    <p>
+      That a solutions engineering team can build its own intelligent content hub without a dedicated data team — and without redeploying every time library access rules change. Concretely: an SE uploads a sales asset (deck, demo, video, doc, code snippet) and within a few seconds it's extracted, chunked, and embedded; an AI chat assistant reads from those embeddings to answer questions like <em>"what's our best competitive deck for a security-focused fintech prospect?"</em>; a <strong>LaunchDarkly feature flag</strong> controls which items are visible per user — and because the chat assistant draws from the same filtered pool, one flag edit scopes both the gallery and the AI simultaneously, with no code deploys.
+    </p>
+
+    <p>
+      Secondary claim: AI-generated metadata is good enough to replace manual tagging. On upload, GPT-4o reads the extracted text and writes title, description, and tags back to the database. SEs spend zero time on taxonomy.
+    </p>
+  </div>
+
+  <!-- ── ARCHITECTURE ───────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>The architecture</h2>
+
+    <p>
+      Three surfaces, one pipeline, one control plane. The insight that made the system debuggable: the LaunchDarkly flag doesn't just filter the UI — it filters the embedding lookup too. One source of truth for access, not two.
+    </p>
+
+    <div class="arch">
+
+      <!-- Row 1: LaunchDarkly control plane -->
+      <div class="arch-ld-plane">
+        <div class="arch-ld-label">LaunchDarkly &middot; Control Plane</div>
+        <div class="arch-ld-flags">
+          <div class="arch-flag-box">
+            <div class="arch-flag-name">gallery-content-access</div>
+            <div class="arch-flag-type">feature flag &nbsp;&middot;&nbsp; gates both gallery display and AI retrieval simultaneously</div>
+          </div>
+          <div class="arch-flag-box">
+            <div class="arch-flag-name">content-item-uploaded</div>
+            <div class="arch-flag-type">metric &nbsp;&middot;&nbsp; tracked on every successful upload event</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connectors: LD → surfaces (dashed = controls, not data) -->
+      <div class="arch-connectors-3">
+        <div class="arch-conn-item">
+          <div class="arch-conn-line dashed"></div>
+          <div class="arch-conn-label blue">filters</div>
+          <div class="arch-conn-arrow blue">▼</div>
+        </div>
+        <div class="arch-conn-item">
+          <div class="arch-conn-line dashed"></div>
+          <div class="arch-conn-label blue">filters</div>
+          <div class="arch-conn-arrow blue">▼</div>
+        </div>
+        <div class="arch-conn-item">
+          <div class="arch-conn-line dashed"></div>
+          <div class="arch-conn-label blue">filters</div>
+          <div class="arch-conn-arrow blue">▼</div>
+        </div>
+      </div>
+
+      <!-- Row 2: Three application surfaces -->
+      <div class="arch-surfaces">
+        <div class="arch-surface">
+          <div class="arch-surface-name">Upload Pipeline</div>
+          <div class="arch-surface-role">extract &middot; chunk &middot; embed &middot; store</div>
+          <div class="arch-surface-tech">PDF / PPTX / DOCX / video<br>GPT-4o metadata &middot; text-embedding-3-small</div>
+        </div>
+        <div class="arch-surface">
+          <div class="arch-surface-name">Chat Assistant</div>
+          <div class="arch-surface-role">embed query &middot; retrieve &middot; answer</div>
+          <div class="arch-surface-tech">pgvector cosine match<br>GPT-4o RAG &middot; persistent sessions</div>
+        </div>
+        <div class="arch-surface">
+          <div class="arch-surface-name">Library Gallery</div>
+          <div class="arch-surface-role">browse &middot; filter &middot; rate &middot; share</div>
+          <div class="arch-surface-tech">React &middot; Supabase Auth<br>view &amp; share count tracking</div>
+        </div>
+      </div>
+
+      <!-- Connectors: surfaces → data layer (solid = data flow) -->
+      <div class="arch-connectors-3">
+        <div class="arch-conn-item">
+          <div class="arch-conn-line"></div>
+          <div class="arch-conn-label">writes + embeds</div>
+          <div class="arch-conn-arrow">▼</div>
+        </div>
+        <div class="arch-conn-item">
+          <div class="arch-conn-line"></div>
+          <div class="arch-conn-label">queries + generates</div>
+          <div class="arch-conn-arrow">▼</div>
+        </div>
+        <div class="arch-conn-item">
+          <div class="arch-conn-line"></div>
+          <div class="arch-conn-label">reads</div>
+          <div class="arch-conn-arrow">▼</div>
+        </div>
+      </div>
+
+      <!-- Row 3: Data layer -->
+      <div class="arch-data-layer">
+        <div class="arch-data-sub">
+          <div class="arch-data-name">Supabase</div>
+          <div class="arch-data-desc">
+            content_items &nbsp;&middot;&nbsp; content_embeddings (pgvector)<br>
+            users &nbsp;&middot;&nbsp; chat_sessions &nbsp;&middot;&nbsp; ratings &nbsp;&middot;&nbsp; ideas
+          </div>
+        </div>
+        <div class="arch-data-ai">
+          <div class="arch-data-name">OpenAI</div>
+          <div class="arch-data-desc">
+            text-embedding-3-small<br>
+            GPT-4o (metadata + chat)
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="arch-legend">
+        <div class="arch-legend-item"><div class="arch-legend-swatch swatch-ld"></div> LaunchDarkly control plane</div>
+        <div class="arch-legend-item"><div class="arch-legend-swatch swatch-sub"></div> Supabase (DB + Auth + Storage)</div>
+        <div class="arch-legend-item"><div class="arch-legend-swatch swatch-ai"></div> OpenAI (embeddings + chat)</div>
+        <div class="arch-legend-item" style="gap:6px"><span style="display:inline-block;width:13px;height:1.5px;background:#8FA8E8;border-top:1.5px dashed #8FA8E8;margin-top:1px"></span> controls access (no data flow)</div>
+        <div class="arch-legend-item" style="gap:6px"><span style="display:inline-block;width:13px;height:1.5px;background:#CCC9C0;margin-top:1px"></span> data read / write</div>
+      </div>
+
+    </div>
+
+    <p>
+      <strong>Three surfaces, three clean ownership lines.</strong> The Upload Pipeline owns ingestion — it writes to Supabase and calls OpenAI. The Chat Assistant owns retrieval — it reads from pgvector and calls GPT-4o. The Library Gallery owns browse and access. The LaunchDarkly flag sits above all three: when a flag rule changes, both the gallery <em>and</em> the AI's retrieval pool update at once, because they query the same filtered set. No surface can accidentally show content another surface has already hidden.
+    </p>
+  </div>
+
+  <!-- ── RESULTS ────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Results</h2>
+
+    <p>
+      Full upload-to-searchable pipeline in under 30 seconds for most file types. AI chat correctly surfaces relevant assets by meaning rather than keyword on the first response in the majority of test queries. Flag-controlled content segmentation proved out as a zero-deploy operation — adding a new content pool or restricting access to a region is a LaunchDarkly UI edit.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>What we built</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ingestion pipeline</td>
+            <td>PDF, PPTX, DOCX, image (vision), video/audio (Whisper), plain text</td>
+            <td>GPT-4o auto-fills title, description, tags on every upload</td>
+          </tr>
+          <tr>
+            <td>Semantic search</td>
+            <td>pgvector cosine similarity, 1,536-dim embeddings, top-N chunk retrieval</td>
+            <td><code>match_content</code> RPC deduplicates by source before returning context</td>
+          </tr>
+          <tr>
+            <td>AI chat (RAG)</td>
+            <td>Persistent sessions, source cards, "My content only" scope toggle</td>
+            <td>Chat history stored in Supabase; same embedding filter as gallery</td>
+          </tr>
+          <tr>
+            <td>Access control</td>
+            <td><code>gallery-content-access</code> LD flag with <code>mode</code> field</td>
+            <td>Flag change gates both gallery and AI retrieval — one edit, two surfaces</td>
+          </tr>
+          <tr>
+            <td>Ideas / AI drafts</td>
+            <td>Chat generates structured content drafts saved to <code>ideas</code> table</td>
+            <td>Drafts are promotable to published library items</td>
+          </tr>
+          <tr>
+            <td>Analytics</td>
+            <td>View count, share count, 1–5 star ratings, upload event tracking</td>
+            <td><code>content-item-uploaded</code> tracked as an LD metric</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── WHAT SURPRISED US ──────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>The thing that took longest wasn't AI</h2>
+
+    <p>
+      It was text extraction. PDFs are fine. PowerPoint files are fine. But PPTX files that were originally exported from Keynote, DOCX files with heavy image embeds, videos that are screen recordings with no audio — each one has its own failure mode. We ended up with six distinct extraction paths before the ingestion pipeline was reliably solid:
+    </p>
+
+    <div class="callout">
+      <p>
+        <code>pdfjs-dist</code> for PDFs &nbsp;·&nbsp; JSZip XML parsing for PPTX/DOCX &nbsp;·&nbsp; GPT-4o Vision for image files &nbsp;·&nbsp; OpenAI Whisper for audio/video &nbsp;·&nbsp; <code>file.text()</code> for plain text/code &nbsp;·&nbsp; metadata fallback for everything else
+      </p>
+    </div>
+
+    <p>
+      The metadata fallback matters more than it sounds. When extraction fails or the file is binary-only, GPT-4o can still generate reasonable title and tags from just the filename, file type, and any description the uploader provided. Content that would otherwise be invisible to search stays partially discoverable.
+    </p>
+
+    <p>
+      The other surprise: <strong>the AI metadata generation is genuinely better than manual tagging.</strong> GPT-4o reads the full extracted text, not just the filename, and writes tags that reflect actual content — competitor names mentioned in the deck, use cases covered, industries referenced. Manual tagging would never be that thorough.
+    </p>
+  </div>
+
+  <!-- ── PATTERNS ────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Patterns worth carrying out of this</h2>
+
+    <h3>The flag has to control the retrieval, not just the display</h3>
+    <p>
+      The naive implementation gates the gallery UI on a flag and leaves the AI chat searching everything. That's a correctness bug. A user who can't see a restricted deck in the gallery <em>can</em> ask the chat assistant about it and get an accurate answer. We connected the two from the start: the chat's <code>match_content</code> RPC receives the same <code>filter_user_id</code> and content-set parameters that the gallery uses. One flag, both surfaces, same answer.
+    </p>
+
+    <h3>Chunk strategy is the single biggest lever on answer quality</h3>
+    <p>
+      We landed on 2,000-character chunks with 200-character overlap. Too small and a single slide's context doesn't fit; too large and unrelated sections get ranked together, diluting relevance. The deduplication step — keeping only the best-scoring chunk per source before passing context to GPT-4o — was the other key improvement. Without it, a long deck would fill the context window with redundant chunks from the same file.
+    </p>
+
+    <h3>Persistent chat history makes the assistant dramatically more useful</h3>
+    <p>
+      A stateless chatbot resets on every message. Storing sessions in Supabase means an SE can ask a follow-up three days later and the assistant remembers the conversation. The implementation is a single <code>chat_sessions</code> table with one row per user and a <code>chat_messages</code> join — small schema surface, large usability delta.
+    </p>
+
+    <h3>Optimistic UI removes the most painful latency</h3>
+    <p>
+      Embedding a file takes 5–15 seconds. Showing the item in the gallery immediately (before the embedding completes) and surfacing an <code>embedding_status</code> indicator on the card means the upload feels instant even when the AI pipeline is still running. Users don't wait at a spinner; they see their content appear and the AI catch up in the background.
+    </p>
+  </div>
+
+  <!-- ── WHERE THIS GOES ────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Where this can go from here</h2>
+
+    <p>Three reasonable next destinations, ordered by lift.</p>
+
+    <ol class="spaced">
+      <li>
+        <div class="list-body">
+          <div class="list-title">AI Configs for prompt and model control</div>
+          <p>
+            The chat assistant's system prompt and model selection are currently hardcoded. Wrapping them in a LaunchDarkly AI Config would let the team A/B test prompt variants, swap models between GPT-4o and other providers without a redeploy, and run the Agent Optimization SDK to iterate on response quality automatically — all from the LD UI. This is the same control-plane pattern proven in the Moonshot; the plumbing already exists.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div class="list-body">
+          <div class="list-title">Semantic deduplication at upload time</div>
+          <p>
+            If two SEs upload the same deck independently, both appear in the gallery and both compete for the same embedding-search slots. An embedding similarity check at upload time — flag a new item when cosine distance to an existing item exceeds a threshold — would surface duplicates before they're committed, keeping the library clean without manual curation.
+          </p>
+        </div>
+      </li>
+      <li>
+        <div class="list-body">
+          <div class="list-title">Automated content freshness scoring</div>
+          <p>
+            A nightly job could re-score every item against a "recency and relevance" rubric — embedding distance to recent uploads, view-count trajectory, age — and surface a "may be outdated" signal on cards. Combined with an LD flag that hides items below a freshness threshold, the library self-prunes without anyone manually archiving old decks.
+          </p>
+        </div>
+      </li>
+    </ol>
+
+    <p>
+      Smaller branches worth a sentence: per-region content pools (the flag already supports attribute-based rules, so a <code>region</code> user attribute is all that's missing); an Ideas-to-content promotion flow that notifies the uploader when an AI-generated draft was turned into a published item; multi-modal search that queries against video transcript embeddings alongside slide text.
+    </p>
+  </div>
+
+  <!-- ── BOTTOM LINE ────────────────────────────────────────────────────── -->
+  <div class="section">
+    <h2>Bottom line</h2>
+
+    <p>
+      The project is demo-complete. Upload pipeline works across all major file types. Semantic search returns meaningful results. AI chat is context-aware and persistent. LaunchDarkly controls both the gallery and the AI in one flag edit. The headline claim — <strong>that a team can build an intelligent internal content platform with LaunchDarkly as the access control spine, no custom ACL logic required</strong> — is supported by a working system.
+    </p>
+
+    <p>
+      The next interesting move is AI Configs. The chat assistant is already good; wrapping it in an AI Config turns "good" into "continuously improvable from the UI."
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer-rule">
+    Moonshot XXIII &nbsp;&middot;&nbsp; Solutions Engineering &nbsp;&middot;&nbsp; for internal distribution.<br />
+    See <code>README.md</code> for setup, <code>BACKEND.md</code> for architecture detail, <code>CONTRIBUTING.md</code> for local dev.
+  </div>
+
+</div>
+</body>
+</html>

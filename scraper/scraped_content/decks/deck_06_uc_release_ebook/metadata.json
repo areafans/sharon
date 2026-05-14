@@ -1,0 +1,26 @@
+{
+  "slug": "deck_06_uc_release_ebook",
+  "content_type": "deck",
+  "title": "Use Case Ebook: Safe Software Releases",
+  "description": "Practical ebook on using LaunchDarkly for safe releases: progressive rollouts, canary deployments, kill switches, and incident response.",
+  "source_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/UC1_Release_Ebook.pdf?version=0",
+  "tags": [
+    "release",
+    "canary",
+    "rollout",
+    "kill-switch",
+    "ebook"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Use Case Ebook: Safe Software Releases",
+    "scraped_description": "Practical ebook on using LaunchDarkly for safe releases: progressive rollouts, canary deployments, kill switches, and incident response.",
+    "local_pdf": "scraped_content/decks/deck_06_uc_release_ebook/06-use-case-release-ebook.pdf",
+    "file_size_bytes": 8202392,
+    "file_mime_type": "application/pdf",
+    "filename": "06-use-case-release-ebook.pdf"
+  },
+  "file_url": "https://go.launchdarkly.com/rs/850-KKH-319/images/UC1_Release_Ebook.pdf?version=0",
+  "is_external_url": true
+}

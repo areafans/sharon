@@ -1,0 +1,25 @@
+{
+  "slug": "doc_01_getting_started",
+  "content_type": "doc",
+  "title": "Getting started",
+  "description": "Official getting-started: account setup, first flag, SDK initialisation, and key concepts for new users.",
+  "source_url": "https://docs.launchdarkly.com/home/getting-started",
+  "tags": [
+    "docs",
+    "getting-started",
+    "onboarding",
+    "sdk"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T16:02:12.567104+00:00",
+  "scrape_detail": {
+    "scraped_title": "Getting started",
+    "scraped_description": "Official getting-started: account setup, first flag, SDK initialisation, and key concepts for new users.",
+    "raw_url": "https://raw.githubusercontent.com/launchdarkly/LaunchDarkly-Docs/main/src/content/topics/home/getting-started/index.mdx",
+    "local_mdx": "scraped_content/docs/doc_01_getting_started/index.mdx",
+    "local_text": "scraped_content/docs/doc_01_getting_started/content.txt",
+    "char_count": 15622
+  },
+  "file_url": "https://docs.launchdarkly.com/home/getting-started",
+  "is_external_url": true
+}

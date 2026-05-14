@@ -1,0 +1,99 @@
+How to learn more from the features you ship | LaunchDarkly
+Skip to:
+Blog
+Experimentation
+How to learn more from the features you ship
+Oct 6, 2025
+How to learn more from the features you ship
+Turn every feature into a chance to learn.
+Allison Rogers
+Senior Product Marketing Manager
+Most teams wait too long to experiment. They treat testing as a final step that occurs after QA signs off, and users already have the feature in hand. By that point, it’s often too late to learn anything meaningful without rewriting what you just shipped.
+But experimentation doesn’t need to be extra work. With the right flags and a little planning, testing can live inside the code you’re already writing. Engineers can work with product teams to make this happen by considering how to:
+“Shift left” to make testing part of early planning
+Design features with multiple variants from the start
+Treat experiments as real sprint work (not an extra task)
+Keep collaboration tight across builds, flags, and metrics
+Shift left: Make experimentation part of planning
+You may have had this experience: a feature ships, and then a PM says, “Can we test different versions?” Then you’re suddenly rewriting logic, redesigning UI states, or jamming test conditions into code that wasn’t built for it.
+You can avoid this scenario by starting the experimentation conversation during the spec phase. Add a simple prompt to your product docs or tickets that reads: “How should we test this?” That question can generate better builds. It lets engineers and PMs align early on what needs to be testable, what metrics matter, and what data will determine success.
+Example: Building a pricing page
+You're building a new pricing page. Instead of hardcoding the layout and copy, you and your PM define two treatments upfront:
+Version A: Classic three-tier layout
+Version B: Simplified two-plan comparison
+From the start, you wrap the layout logic behind a feature flag. You create two render paths:
+You also agree on success metrics, such as plan click-through rate and time on page, which you can
+easily create in LaunchDarkly
+using event data. This creates a single experiment-ready feature from the start.
+Design features with variants in mind (and in code)
+Experiments go wrong when developers are uninformed and are asked to implement “control” and “treatment” groups without context. A better approach is to bring experimentation into your design and implementation decisions. This can help you write more modular, testable code that ultimately results in clearer, more trustworthy data.
+Best practices for developer-led experimentation
+Build variations into a single flag to ultimately split traffic evenly and sustainably when an experiment is started.
+In application code, keep render logic close to variant logic. When all paths are in one place, it’s easier to test and debug.
+Pass variant values to child components explicitly; avoid reaching into global state or assuming variant A is the default.
+Example: API-level experiments
+Say you're testing a new recommendation algorithm. You could write:
+And add a custom event to track your success:
+With these additions, you have the same flag across frontend and backend, with consistent targeting and clean data.
+Make experiments part of sprint planning
+Experiments are often scoped as “future work” or extra credit, which slows teams down and disconnects delivery from learning. Making experimentation an essential part of sprint planning is part of the solution. You can do this by:
+Assigning shared ownership. The PM defines the hypothesis and success metrics. The engineer defines the flag, treatment logic, metric creation, and event tracking.
+Adding setup and instrumentation to story points. If a story needs A/B testing, it’s not complete until the flag logic and metrics are in place.
+Including a testability checklist in your ticket templates.
+-Is this feature behind a flag?
+-Are variants defined?
+-Are success metrics connected and receiving event data?
+Aligning on naming early. Agreeing on what to call metrics, events, and treatments can help you avoid a lot of frustration later. For example:
+-Metric:
+signup_success_rate
+-Event:
+signup_complete
+-Variants:
+control, simplified_form
+In addition to creating better processes and sprint planning, this practice can generate a mindset shift as teams move toward a
+product-centric delivery model
+. It encourages teams to move from asking “what did we ship?” to “what did we learn?”
+Keep experimentation visible across the team
+Even with the right tools, experiments can fade into the background. Without shared visibility and team habits, tests can run quietly in the background, with no clear owners or follow-up. Good habits for prioritizing experiments and keeping results visible can keep things on track and top of mind. Try these team practices:
+Experiment review.
+Before a sprint, review planned experiments as a team. Ask: What are we trying to learn? What will we measure? Who owns the implementation and follow-through?
+Post-launch learning share.
+Make experiment outcomes part of your product review. Ask: What did we learn? What decision did it inform?
+A little structure goes a long way in keeping experiments visible, prioritized, and part of the product conversation.
+Start with a question
+You’re already using flags. LaunchDarkly lets you turn them into experiments, with no new tools or complex setup. Because it’s all in the same platform, you don’t have to stitch together targeting, telemetry, and data yourself.
+When your team plans a new feature, try starting your experimentation by asking:
+“What do we need to learn?”
+Then design the feature in a way that lets you learn from it in production. You’ll write better code and make product decisions backed by real data, not gut feelings.
+Get a demo
+or
+read our docs
+to see how LaunchDarkly Experimentation works in practice.
+Like what you read?
+Allison Rogers
+Senior Product Marketing Manager
+Sign up for our newsletter
+Get tips and best practices on feature management, developing great AI apps, running smart experiments, and more.
+Subscribe
+Related Content
+See all
+Experimentation
+Introducing sequential testing for LaunchDarkly Experimentation
+Experimentation
+Metric Data Sources: import multiple tables for warehouse-native experimentation
+Experimentation
+Introducing stratified sampling for LaunchDarkly Experimentation
+Experimentation
+New Experimentation tools for PMs who test, learn, and move fast
+Experimentation
+The Metrics glow-up: Smoother, smarter, simpler
+Experimentation
+Multiple Multi-Armed Bandits
+Experimentation
+Data Export: Now available for BigQuery, Databricks, Redshift, and the EU
+Experimentation
+The ecommerce metrics that turn browsers into buyers
+Experimentation
+Mastering product-centric delivery: accelerating outcomes with feature management and experimentation
+Experimentation
+Less clutter, more insight: Slice metrics from one event

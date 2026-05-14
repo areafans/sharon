@@ -1,0 +1,9 @@
+[
+  ".github",
+  ".gitignore",
+  "CODEOWNERS",
+  "Gemfile",
+  "LICENSE.txt",
+  "README.md",
+  "main.rb"
+]

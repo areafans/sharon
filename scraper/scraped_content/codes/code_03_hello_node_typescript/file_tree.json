@@ -1,0 +1,9 @@
+[
+  ".github",
+  ".gitignore",
+  "LICENSE.txt",
+  "README.md",
+  "index.ts",
+  "package.json",
+  "tsconfig.json"
+]

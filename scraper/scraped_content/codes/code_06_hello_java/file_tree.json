@@ -1,0 +1,12 @@
+[
+  ".github",
+  ".gitignore",
+  "CODEOWNERS",
+  "LICENSE.txt",
+  "README.md",
+  "build.gradle",
+  "gradle",
+  "gradlew",
+  "gradlew.bat",
+  "src"
+]

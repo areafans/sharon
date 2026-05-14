@@ -1,0 +1,36 @@
+{
+  "slug": "code_03_hello_node_typescript",
+  "content_type": "code",
+  "title": "hello-node-typescript",
+  "description": "Hello LaunchDarkly for Node.js and TypeScript",
+  "source_url": "https://github.com/launchdarkly/hello-node-typescript",
+  "tags": [
+    "code",
+    "typescript",
+    "nodejs",
+    "server-side",
+    "sample"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "hello-node-typescript",
+    "scraped_description": "Hello LaunchDarkly for Node.js and TypeScript",
+    "stars": 4,
+    "forks": 3,
+    "language": "TypeScript",
+    "default_branch": "main",
+    "local_readme": "scraped_content/codes/code_03_hello_node_typescript/README.md",
+    "file_tree": [
+      ".github",
+      ".gitignore",
+      "LICENSE.txt",
+      "README.md",
+      "index.ts",
+      "package.json",
+      "tsconfig.json"
+    ]
+  },
+  "file_url": "https://github.com/launchdarkly/hello-node-typescript",
+  "is_external_url": true
+}

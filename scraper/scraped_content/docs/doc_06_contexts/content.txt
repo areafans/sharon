@@ -1,0 +1,72 @@
+---
+path: /home/contexts
+title: Contexts and segments
+description: This category has documentation topics about LaunchDarkly contexts and segments. Contexts are people, services, machines, or other resources that encounter feature flags in your product.
+published: true
+tags: ['context', 'user', 'custom context', 'context kind', 'multi-context', 'segment']
+---
+## Overview
+This category has documentation topics about LaunchDarkly contexts and segments. Contexts are people, services, machines, or other resources that encounter feature flags in your product. Segments let you target groups of contexts individually or by attribute.
+We have upgraded LaunchDarkly's core functionality to support custom contexts, as well as many of our most popular SDKs. Not all LaunchDarkly SDKs support contexts yet. Instead, they rely on legacy user objects. To learn which SDKs are available to use with contexts, read [SDKs](/sdk).
+## Understanding the foundations of contexts
+Contexts are an evolution of a previously-existing concept, "users." Over time, we found that many LaunchDarkly customers have businesses that aren't focused on users. Instead, these customers care about accounts, devices, locations, or other custom contexts unique to their business.
+Contexts let you create targeting rules for feature flags based on a variety of different information, including attributes pertaining to users, organizations, devices, and more. You can be as specific as targeting a flag to a single end user, or as broad as targeting your entire customer base.
+You can manage the way contexts interact with flags, and which contexts encounter which flags, by targeting flags to specific contexts. You can even choose which contexts to include or exclude in the data you collect. When a flag evaluation occurs, the feature flag uses the **evaluation context** to understand what variation to serve. The evaluation context is an object including one or more contexts and its attributes that you pass to the SDK's variation method when you evaluate flags.
+Only the context attributes you provide are available for targeting
+The SDK only evaluates flags based on the context you provide in the evaluation call. You must provide all applicable attributes for each evaluation in the SDK for your targeting rules to apply correctly. To learn more, read [Evaluating flags](/sdk/features/evaluating).
+For a list of SDKs that support contexts, read our [SDK documentation](/sdk).
+To learn more about upgrading to contexts, read [Best practices for upgrading users to contexts](/guides/flags/upgrading-contexts).
+### Example: Anna at Global Health
+As an example, let's assume Anna is one of your end users. She is a doctor who works for a hospital chain called Global Health Services. Anna has two mobile devices, an Android phone and an iPad tablet. Anna uses your application on both devices as part of her work.
+Given this information, you may know the following things about Anna:
+* her name, email, and job function ("doctor"),
+* her organization's name ("Global Health Services") and address,
+* her device's type, operating system, and device ID, for each mobile device.
+You may want to target several different contexts that would impact Anna’s experience. Using contexts, you can include the following in your application:
+* You can target Anna in a feature flag based on her job function, as part of a feature that allows all doctors to access patient records.
+* You can target her devices with a feature flag, as part of a feature that provides different styling for Android and iPad devices.
+* You can run an experiment to test out a new feature, and ensure that Anna and everyone in her company receives the same variation, by targeting your experiment to her organization.
+## Contexts and context kinds
+Contexts describe individual people, users, devices, and more.
+You can organize information about the different entities that encounter feature flags in your product based on **context kinds**. Each context has one `kind` with a unique set of corresponding attributes that you can use for targeting and Experimentation. Kinds expand on LaunchDarkly's built-in and custom attributes, allowing you to create targetable objects that meet your needs precisely. You can define context kinds from the **Contexts** list, under the **Kinds** tab. To learn more, read [Context kinds](/home/contexts/context-kinds).
+Each context also has a `key`. Each combination of `kind` and `key` must be unique across all your contexts. Other context attributes can be strings, booleans, numbers, arrays, or JSON objects. When you evaluate a feature flag within your application, the flag's targeting rules use information from one or more kinds of contexts. When you build your targeting rules, the attributes are automatically organized by context kind. To learn more, read [Targeting with flags](/home/flags/targeting).
+When you use the LaunchDarkly SDK to evaluate a flag, you provide an evaluation context to that call.
+Configure your SDK: [User and context configuration](/sdk/features/user-context-config), [Evaluating flags](/sdk/features/evaluating)
+After different contexts encounter your application, you can view them on the **Contexts** list. To learn more, read [The Contexts list](/home/contexts/contexts-list).
+### Example: Contexts that affect Anna's experience
+Using the example above, we can describe the information about Anna using three different context kinds:
+* her name, email, and job function ("doctor") are part of a "user" context,
+* her organization's name ("Global Health Services") and address are part of an "organization" context,
+* her device's type, operating system, and device ID are part of a "device" context.
+Here's an example of what each context looks like:
+```json
+// a user context
+"context": {
+  "kind": "user",
+  "key": "user-key-123abc",
+  "name": "Anna",
+  "email": "anna@globalhealthexample.com",
+  "jobFunction": "doctor"
+  }
+// an organization context
+"context": {
+  "kind": "organization",
+  "key": "org-key-123abc",
+  "name": "Global Health Services",
+  "address": {
+    "street": "123 Main Street",
+    "city": "Springfield"
+    }
+  }
+// a device context
+"context": {
+  "kind": "device",
+  "key": "device-key-123abc",
+  "type": "iPad",
+  "operating_system": "iPadOS 15",
+  "deviceId": 12345
+  }
+```
+If you want flags to be able to evaluate these contexts all together, you can use multi-contexts. This means, for example, that your flags could target all doctors using iPads in Springfield. To learn how, read [Multi-contexts and context instances](/home/contexts/multi-contexts).
+## Related content
+Here are the topics in this category:

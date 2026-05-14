@@ -1,0 +1,26 @@
+{
+  "slug": "video_07_vscode_extension",
+  "content_type": "video",
+  "title": "Feature flagging with LaunchDarkly and Visual Studio Code",
+  "description": "Brian Rinaldi demos the LaunchDarkly VS Code extension: managing flags directly from the editor, both server-side and client-side.",
+  "source_url": "https://www.youtube.com/watch?v=S06fs9O9lvI",
+  "tags": [
+    "vs-code",
+    "ide",
+    "developer-tooling",
+    "extension",
+    "demo"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Feature flagging with LaunchDarkly and Visual Studio Code",
+    "author": "LaunchDarkly",
+    "thumbnail_url": "https://i.ytimg.com/vi/S06fs9O9lvI/hqdefault.jpg",
+    "local_thumbnail": "scraped_content/videos/video_07_vscode_extension/thumbnail.jpg",
+    "width": 200,
+    "height": 113
+  },
+  "file_url": "https://www.youtube.com/watch?v=S06fs9O9lvI",
+  "is_external_url": true
+}

@@ -1,0 +1,27 @@
+{
+  "slug": "demo_03_testing_in_production",
+  "content_type": "demo",
+  "title": "Testing in Production to Stay Safe and Sensible - LaunchDarkly | LaunchDarkly",
+  "description": "Testing software changes in a real-world production environment is essential to modern development. Learn how to test in production safely with feature flags using a feature management platform.",
+  "source_url": "https://launchdarkly.com/blog/testing-in-production-for-safety-and-sanity/",
+  "tags": [
+    "testing",
+    "production",
+    "safety",
+    "observability",
+    "blog"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "Testing in Production to Stay Safe and Sensible - LaunchDarkly | LaunchDarkly",
+    "scraped_description": "Testing software changes in a real-world production environment is essential to modern development. Learn how to test in production safely with feature flags using a feature management platform.",
+    "image_url": "https://images.prismic.io/launchdarkly/f44cc827-b177-4531-8dc0-25a0ed02bcc9_Testing+in+production+to+stay+safe+and+sensible.png?auto=compress,format",
+    "local_image": "scraped_content/demos/demo_03_testing_in_production/preview.png",
+    "local_html": "scraped_content/demos/demo_03_testing_in_production/page.html",
+    "local_text": "scraped_content/demos/demo_03_testing_in_production/content.txt",
+    "text_length": 10000
+  },
+  "file_url": "https://launchdarkly.com/blog/testing-in-production-for-safety-and-sanity/",
+  "is_external_url": true
+}

@@ -1,0 +1,9 @@
+[
+  ".github",
+  ".gitignore",
+  "CODEOWNERS",
+  "LICENSE.txt",
+  "README.md",
+  "go.mod",
+  "main.go"
+]

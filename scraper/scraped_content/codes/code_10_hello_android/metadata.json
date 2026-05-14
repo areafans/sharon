@@ -1,0 +1,41 @@
+{
+  "slug": "code_10_hello_android",
+  "content_type": "code",
+  "title": "hello-android",
+  "description": "Hello LaunchDarkly for Android",
+  "source_url": "https://github.com/launchdarkly/hello-android",
+  "tags": [
+    "code",
+    "android",
+    "mobile",
+    "kotlin",
+    "client-side"
+  ],
+  "scrape_status": "ok",
+  "scraped_at": "2026-05-14T15:52:53.704130+00:00",
+  "scrape_detail": {
+    "scraped_title": "hello-android",
+    "scraped_description": "Hello LaunchDarkly for Android",
+    "stars": 6,
+    "forks": 10,
+    "language": "Kotlin",
+    "default_branch": "main",
+    "local_readme": "scraped_content/codes/code_10_hello_android/README.md",
+    "file_tree": [
+      ".github",
+      ".gitignore",
+      "CODEOWNERS",
+      "LICENSE",
+      "README.md",
+      "app",
+      "build.gradle",
+      "gradle.properties",
+      "gradle",
+      "gradlew",
+      "gradlew.bat",
+      "settings.gradle"
+    ]
+  },
+  "file_url": "https://github.com/launchdarkly/hello-android",
+  "is_external_url": true
+}
