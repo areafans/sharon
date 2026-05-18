@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react'
 
 // Adapts a Vercel-style handler (req.body is parsed, res has .status/.json)
 // to a Connect/Vite middleware (raw Node req/res).
+//
+// loadHandler() is called on every request so HMR-ed handlers are always fresh.
+// We use the Vite Environment Runner (Vite 6+ API) instead of the deprecated
+// server.ssrLoadModule() which had a bug where errors were silently dropped and
+// Vite's own 404 fallback would fire instead of our 500.
 function vercelStyleMiddleware(loadHandler) {
   return async (req, res, next) => {
     try {
@@ -16,26 +21,31 @@ function vercelStyleMiddleware(loadHandler) {
       }
 
       const send = (status, payload) => {
+        if (res.headersSent) return
         res.statusCode = status
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify(payload))
       }
       res.status = (s) => ({
         json: (p) => send(s, p),
-        end: (p) => { res.statusCode = s; res.end(p) },
+        end: (p) => { if (!res.headersSent) { res.statusCode = s; res.end(p) } },
       })
       res.json = (p) => send(200, p)
 
       const handler = await loadHandler()
+      if (typeof handler !== 'function') {
+        throw new Error(`API handler resolved to ${typeof handler} instead of function`)
+      }
       await handler(req, res)
+      // Do NOT call next() — we own this route entirely.
     } catch (err) {
-      console.error('[vite middleware] error:', err)
+      console.error('[api middleware] error:', err)
       if (!res.headersSent) {
         res.statusCode = 500
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify({ error: err.message }))
       }
-      next?.(err)
+      // Do NOT call next(err) — that causes Vite's 404 handler to fire.
     }
   }
 }
@@ -55,24 +65,30 @@ export default defineConfig(({ mode }) => {
       {
         name: 'api-routes',
         configureServer(server) {
-          // Mount the same Vercel functions that run in production so dev and
-          // prod share one code path for auth, origin checks, and model clamps.
-          // Previously /api/claude was a raw Vite proxy to Anthropic, which
-          // skipped api/claude.js entirely in dev.
-          server.middlewares.use(
-            '/api/agent',
-            vercelStyleMiddleware(async () => {
-              const mod = await server.ssrLoadModule('/api/agent.js')
+          // Use Vite's Environment Runner (Vite 6+ non-deprecated API) to load
+          // the Vercel-style API handlers in the SSR environment.
+          const loadModule = async (relPath) => {
+            const runner = server.environments?.ssr?.runner
+            if (runner) {
+              const mod = await runner.import(relPath)
               return mod.default
-            })
-          )
-          server.middlewares.use(
-            '/api/claude',
-            vercelStyleMiddleware(async () => {
-              const mod = await server.ssrLoadModule('/api/claude.js')
-              return mod.default
-            })
-          )
+            }
+            const mod = await server.ssrLoadModule(relPath)
+            return mod.default
+          }
+
+          // Return a function so our routes are registered BEFORE Vite's own
+          // middleware (static file server, transform, etc.). Without this,
+          // Vite's stack can set res.headersSent=true before our handler runs.
+          return () => {
+            const routes = ['/api/claude', '/api/agent', '/api/invite', '/api/team']
+            for (const route of routes) {
+              server.middlewares.use(
+                route,
+                vercelStyleMiddleware(() => loadModule(`${route}.js`))
+              )
+            }
+          }
         },
       },
     ],

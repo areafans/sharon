@@ -13,6 +13,7 @@ import UploadModal from './components/UploadModal';
 import ShareModal from './components/ShareModal';
 import ChatView from './components/ChatView';
 import AnalyticsView from './components/AnalyticsView';
+import TeamView from './components/TeamView';
 import Toast from './components/Toast';
 
 export default function App() {
@@ -46,6 +47,9 @@ export default function App() {
   const [items, setItems] = useState([]);
   const [ideas, setIdeas] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // User profile (org + role)
+  const [userProfile, setUserProfile] = useState(null);
 
   // Theme
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
@@ -87,8 +91,24 @@ export default function App() {
     fetchContent();
     fetchIdeas();
     fetchChatSessions();
+    fetchUserProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  async function fetchUserProfile() {
+    if (!session?.user?.id) return;
+    const { data } = await supabase
+      .from('users')
+      .select('id, org_id, role, name, email, organizations(name)')
+      .eq('id', session.user.id)
+      .single();
+    if (data) {
+      setUserProfile({
+        ...data,
+        org_name: data.organizations?.name ?? null,
+      });
+    }
+  }
 
   async function fetchChatSessions() {
     if (!session?.user?.id) return;
@@ -264,6 +284,7 @@ export default function App() {
           setView('chat');
         }}
         onDeleteChat={deleteChatSession}
+        userProfile={userProfile}
       />
 
       <main className="main">
@@ -337,6 +358,12 @@ export default function App() {
             items={visibleItems}
             ideas={ideas}
             session={session}
+          />
+        )}
+        {view === 'team' && (
+          <TeamView
+            session={session}
+            userProfile={userProfile}
           />
         )}
       </main>

@@ -3081,3 +3081,273 @@ img.brand-mark {
   .analytics-grid-2 { grid-template-columns: 1fr; }
   .analytics-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
+
+
+/* ============================================================
+   TEAM VIEW
+   ============================================================ */
+
+.team-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 28px 0;
+}
+
+.team-body {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 48px;
+}
+
+.team-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+}
+
+
+/* Invite section */
+.team-invite-section {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.team-invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.team-invite-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.team-invite-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.team-invite-input:focus {
+  border-color: var(--accent);
+}
+.team-invite-input::placeholder { color: var(--muted-2); }
+
+.team-invite-btn {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+}
+
+.team-invite-error {
+  font-size: 13px;
+  color: var(--accent);
+  padding: 4px 0;
+}
+
+.team-invite-success {
+  font-size: 13px;
+  color: var(--forest);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+}
+
+/* Sections */
+.team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Member rows */
+.team-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-member-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.team-member-row:hover { border-color: var(--line-strong); }
+
+.team-member-row-pending { opacity: 0.75; }
+
+.team-pending-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-deep);
+  border: 1px dashed var(--line-strong);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.team-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-member-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-member-email {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-you-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-2);
+  background: var(--bg-deep);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 400;
+}
+
+.team-member-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.team-member-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.team-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: color 0.13s, border-color 0.13s, background 0.13s;
+  white-space: nowrap;
+}
+.team-action-btn:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--bg-deep);
+}
+.team-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.team-action-btn-danger:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Role badges */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.role-badge-admin {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.role-badge-member {
+  background: var(--bg-deep);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.role-badge-pending {
+  background: var(--forest-soft);
+  color: var(--forest);
+}
+
+/* User card role display */
+.user-role-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+}
+
+/* Avatar size: md (used in TeamView) */
+.avatar.md {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+/* Thinking spinner — small variant */
+.thinking.sm span {
+  width: 4px;
+  height: 4px;
+}
+
+/* Supabase auth.admin.inviteUserByEmail needs PKCE — handled automatically
+   when the user clicks the link. The auth page handles the resulting session. */

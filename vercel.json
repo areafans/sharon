@@ -3,6 +3,8 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/claude", "destination": "/api/claude" },
+    { "source": "/api/invite", "destination": "/api/invite" },
+    { "source": "/api/team",   "destination": "/api/team" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
