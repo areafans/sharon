@@ -26,11 +26,6 @@ export default function UploadModal({ session, onClose, onUploaded }) {
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
-  // `source` is user-controllable, but for `type === 'code'` it's always
-  // 'external' (the toggle is hidden in that case). Derive the effective
-  // value rather than syncing via an effect — avoids the
-  // `react-hooks/set-state-in-effect` anti-pattern and keeps a single source
-  // of truth.
   const [sourceState, setSource] = useState('file');
   const source = type === 'code' ? 'external' : sourceState;
   const [externalUrl, setExternalUrl] = useState('');
@@ -68,7 +63,6 @@ export default function UploadModal({ session, onClose, onUploaded }) {
       let fileSize = null;
       let fileMime = null;
 
-      // Upload file to Supabase Storage
       if (source === 'file' && file) {
         setEmbedStatus('Uploading file…');
         setEmbedProgress(15);
@@ -89,7 +83,6 @@ export default function UploadModal({ session, onClose, onUploaded }) {
 
       setEmbedStatus('Saving to database…');
 
-      // Insert content item
       const { data: newItem, error: insertErr } = await supabase
         .from('content_items')
         .insert({
@@ -111,15 +104,20 @@ export default function UploadModal({ session, onClose, onUploaded }) {
       if (insertErr) throw new Error(`Insert failed: ${insertErr.message}`);
       setEmbedProgress(40);
 
-      // Generate embeddings
       setEmbedStatus('Generating AI embeddings…');
       try {
-        const result = await processContentForEmbedding(
-          source === 'file' ? file : null,
-          newItem.id,
-          { title: title.trim(), description: desc.trim(), tags },
-          (msg) => setEmbedStatus(msg),
+        const embedTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Embedding timed out — item saved, search indexing skipped')), 90_000)
         );
+        const result = await Promise.race([
+          processContentForEmbedding(
+            source === 'file' ? file : null,
+            newItem.id,
+            { title: title.trim(), description: desc.trim(), tags },
+            (msg) => setEmbedStatus(msg),
+          ),
+          embedTimeout,
+        ]);
 
         await supabase.from('content_items').update({
           embedding_status: 'complete',
@@ -156,6 +154,7 @@ export default function UploadModal({ session, onClose, onUploaded }) {
     <div className="modal-backdrop" onClick={onClose}>
       <button className="modal-close" onClick={onClose}><Icons.Close size={16} /></button>
       <div className="modal" style={{ maxWidth: 680 }} onClick={e => e.stopPropagation()}>
+
         <div className="upload-head">
           <div className="ai-orb-sm" style={{ width: 28, height: 28 }}>
             <Icons.Upload size={14} />
@@ -342,6 +341,7 @@ export default function UploadModal({ session, onClose, onUploaded }) {
             )}
           </button>
         </div>
+
       </div>
     </div>
   );

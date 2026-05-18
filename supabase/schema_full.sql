@@ -38,8 +38,20 @@ end $$;
 
 
 -- ============================================================
+-- ORGANIZATIONS (added in v7)
+-- ============================================================
+
+create table if not exists public.organizations (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  created_at timestamptz default now()
+);
+
+
+-- ============================================================
 -- USERS
 -- Mirrors auth.users; populated via trigger on signup.
+-- org_id / role added in v7.
 -- ============================================================
 
 create table if not exists public.users (
@@ -47,16 +59,37 @@ create table if not exists public.users (
   email       text,
   name        text,
   avatar_url  text,
+  org_id      uuid references public.organizations(id) on delete set null,
+  role        text not null default 'member' check (role in ('admin', 'member')),
   created_at  timestamptz default now()
 );
+
+create index if not exists users_org_idx on public.users(org_id);
 
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
+declare
+  v_org_id uuid;
 begin
-  insert into public.users (id, email, name, avatar_url)
+  -- Check for a pending invitation matching this email (v7)
+  select org_id into v_org_id
+  from public.org_invitations
+  where email = new.email
+    and status = 'pending'
+  order by created_at desc
+  limit 1;
+
+  if v_org_id is not null then
+    update public.org_invitations
+    set status = 'accepted'
+    where email = new.email
+      and status = 'pending';
+  end if;
+
+  insert into public.users (id, email, name, avatar_url, org_id, role)
   values (
     new.id,
     new.email,
@@ -65,7 +98,9 @@ begin
       new.raw_user_meta_data->>'name',
       split_part(new.email, '@', 1)
     ),
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    v_org_id,
+    case when v_org_id is not null then 'member' else 'member' end
   )
   on conflict (id) do nothing;
   return new;
@@ -237,6 +272,21 @@ create table if not exists public.share_links (
 
 
 -- ============================================================
+-- ORG INVITATIONS (added in v7)
+-- ============================================================
+
+create table if not exists public.org_invitations (
+  id         uuid primary key default gen_random_uuid(),
+  org_id     uuid not null references public.organizations(id) on delete cascade,
+  email      text not null,
+  invited_by uuid references public.users(id) on delete set null,
+  status     text not null default 'pending'
+    check (status in ('pending', 'accepted', 'revoked')),
+  created_at timestamptz default now()
+);
+
+
+-- ============================================================
 -- CHAT SESSIONS
 -- Unique constraint on user_id removed in v4 (multiple sessions per user).
 -- title and updated_at added in v4.
@@ -312,6 +362,7 @@ create index if not exists share_links_token_idx           on public.share_links
 -- ROW LEVEL SECURITY
 -- ============================================================
 
+alter table public.organizations      enable row level security;
 alter table public.users              enable row level security;
 alter table public.content_items      enable row level security;
 alter table public.content_embeddings enable row level security;
@@ -321,6 +372,7 @@ alter table public.share_links        enable row level security;
 alter table public.chat_sessions      enable row level security;
 alter table public.chat_messages      enable row level security;
 alter table public.ideas              enable row level security;
+alter table public.org_invitations    enable row level security;
 
 -- Drop all policies before recreating so this script is safely re-runnable
 do $$ declare r record; begin
@@ -331,6 +383,16 @@ do $$ declare r record; begin
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 end $$;
+
+-- organizations
+create policy "orgs_select_member" on public.organizations
+  for select using (
+    id in (select org_id from public.users where id = auth.uid())
+  );
+create policy "orgs_update_admin" on public.organizations
+  for update using (
+    id in (select org_id from public.users where id = auth.uid() and role = 'admin')
+  );
 
 -- users
 create policy "users_select_all" on public.users for select using (true);
@@ -384,6 +446,26 @@ create policy "ideas_insert_auth" on public.ideas for insert with check (auth.ui
 create policy "ideas_update_own"  on public.ideas for update using (auth.uid() = created_by);
 create policy "ideas_delete_own"  on public.ideas for delete using (auth.uid() = created_by);
 
+-- org_invitations
+create policy "invitations_select_org" on public.org_invitations
+  for select using (
+    org_id in (select org_id from public.users where id = auth.uid())
+  );
+create policy "invitations_insert_admin" on public.org_invitations
+  for insert with check (
+    org_id in (
+      select org_id from public.users
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+create policy "invitations_update_admin" on public.org_invitations
+  for update using (
+    org_id in (
+      select org_id from public.users
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
 
 -- ============================================================
 -- STORAGE POLICIES (storage.objects, bucket: content-files)
@@ -429,5 +511,6 @@ insert into schema_migrations (filename) values
   ('migrate_v3.sql'),
   ('migrate_v4.sql'),
   ('migrate_v5.sql'),
-  ('migrate_v6.sql')
+  ('migrate_v6.sql'),
+  ('migrate_v7.sql')
 on conflict (filename) do nothing;

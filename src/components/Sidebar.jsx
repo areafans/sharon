@@ -25,6 +25,7 @@ export default function Sidebar({
   items, ideas, session,
   chatSessions = [], activeChatSessionId,
   onSelectChat, onNewChat, onDeleteChat,
+  userProfile,
 }) {
   const user = session?.user;
   const [tagsCollapsed, setTagsCollapsed] = useState(
@@ -101,6 +102,13 @@ export default function Sidebar({
         >
           <span className="nav-icon"><Icons.BarChart size={16} /></span>
           Analytics
+        </button>
+        <button
+          className={`nav-item ${view === 'team' ? 'active' : ''}`}
+          onClick={() => onNav('team')}
+        >
+          <span className="nav-icon"><Icons.Users size={16} /></span>
+          My Team
         </button>
       </div>
 
@@ -207,7 +215,11 @@ export default function Sidebar({
         <Avatar user={user} size="sm" />
         <div>
           <div className="user-name">{name}</div>
-          <div className="user-role">Solutions Eng</div>
+          <div className="user-role">
+            {userProfile?.role === 'admin' ? (
+              <span className="user-role-admin"><Icons.Shield size={11} /> Admin</span>
+            ) : 'Member'}
+          </div>
         </div>
         <button
           style={{ marginLeft: 'auto', display: 'grid', placeItems: 'center', padding: 4, borderRadius: 4 }}

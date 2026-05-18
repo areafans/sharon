@@ -54,11 +54,13 @@ export function chunkText(text, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP) {
 
 // ─── extractors ───────────────────────────────────────────────────────────────
 
-async function extractFromPDF(file) {
+async function extractFromPDF(file, onProgress) {
   const buffer = await file.arrayBuffer();
   const pdf    = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const total  = pdf.numPages;
   const pages  = [];
-  for (let p = 1; p <= pdf.numPages; p++) {
+  for (let p = 1; p <= total; p++) {
+    if (total > 1) onProgress?.(`Extracting PDF text (page ${p} of ${total})…`);
     const page    = await pdf.getPage(p);
     const content = await page.getTextContent();
     pages.push(content.items.map(item => item.str).join(' '));
@@ -66,14 +68,15 @@ async function extractFromPDF(file) {
   return pages.join('\n\n');
 }
 
-async function extractFromPPTX(file) {
+async function extractFromPPTX(file, onProgress) {
   const zip    = await JSZip.loadAsync(await file.arrayBuffer());
   const slides = Object.keys(zip.files)
     .filter(n => /^ppt\/slides\/slide\d+\.xml$/i.test(n))
     .sort();
   const texts = [];
-  for (const path of slides) {
-    const xml   = await zip.files[path].async('text');
+  for (let i = 0; i < slides.length; i++) {
+    if (slides.length > 1) onProgress?.(`Extracting slide ${i + 1} of ${slides.length}…`);
+    const xml   = await zip.files[slides[i]].async('text');
     // Pull text out of <a:t> nodes (DrawingML text runs)
     const parts = [...xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g)].map(m => m[1]);
     const text  = parts.join(' ').trim();
@@ -82,7 +85,8 @@ async function extractFromPPTX(file) {
   return texts.join('\n\n');
 }
 
-async function extractFromDOCX(file) {
+async function extractFromDOCX(file, onProgress) {
+  onProgress?.('Reading document XML…');
   const zip    = await JSZip.loadAsync(await file.arrayBuffer());
   const docXml = await zip.files['word/document.xml']?.async('text');
   if (!docXml) return '';
@@ -92,6 +96,10 @@ async function extractFromDOCX(file) {
 }
 
 async function describeImage(file) {
+  // Fetch the current Supabase session so the /api/claude proxy accepts the request.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+
   const base64 = await new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -103,9 +111,10 @@ async function describeImage(file) {
     headers: {
       'Content-Type': 'application/json',
       'anthropic-version': '2023-06-01',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 1500,
       messages: [{
         role: 'user',
@@ -174,16 +183,16 @@ export async function extractText(file, onProgress) {
     return file.text();
   }
   if (EXT_PDF.test(name)) {
-    onProgress?.('Extracting text from PDF (page by page)…');
-    return extractFromPDF(file);
+    onProgress?.('Extracting text from PDF…');
+    return extractFromPDF(file, onProgress);
   }
   if (EXT_PPTX.test(name)) {
-    onProgress?.('Extracting text from presentation slides…');
-    return extractFromPPTX(file);
+    onProgress?.('Extracting text from presentation…');
+    return extractFromPPTX(file, onProgress);
   }
   if (EXT_DOCX.test(name)) {
     onProgress?.('Extracting text from document…');
-    return extractFromDOCX(file);
+    return extractFromDOCX(file, onProgress);
   }
   if (EXT_IMAGE.test(name)) {
     onProgress?.('Analyzing image with Claude Vision…');
@@ -201,14 +210,26 @@ export async function extractText(file, onProgress) {
 // ─── embedding + storage ──────────────────────────────────────────────────────
 
 async function embedBatch(texts) {
-  const res = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
-    body: JSON.stringify({ model: 'text-embedding-3-small', input: texts }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  let res;
+  try {
+    res = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: JSON.stringify({ model: 'text-embedding-3-small', input: texts }),
+      signal: controller.signal,
+    });
+  } catch (fetchErr) {
+    throw new Error(fetchErr.name === 'AbortError' ? 'Embeddings request timed out' : fetchErr.message);
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'Embeddings API failed');
+    const errText = await res.text().catch(() => '');
+    let msg = 'Embeddings API failed';
+    try { msg = JSON.parse(errText)?.error?.message || msg; } catch { /* non-JSON body */ }
+    throw new Error(msg);
   }
   const data = await res.json();
   // API returns results sorted by index, so order is guaranteed
